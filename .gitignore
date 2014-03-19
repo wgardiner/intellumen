@@ -1,0 +1,6 @@
+Logfiles
+*.pyc
+.DS_Store
+bottlenose.egg-info/
+build/
+dist/

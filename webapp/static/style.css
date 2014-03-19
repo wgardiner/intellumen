@@ -1,0 +1,33 @@
+h1 {
+    font-size: 2em;
+    margin-top: 0;
+}
+
+body {
+    padding: 5px;
+}
+
+legend.scheduler-border {
+    width:inherit; /* Or auto */
+    padding: 0;
+    margin-bottom: 0em;
+    border: 0;
+}
+
+fieldset {
+    border: 1px solid black;
+    padding: 5px;
+    margin-bottom: 1em;
+}
+
+div.flash {
+    font-size: 2em;
+    color: red;
+    border: 1px dotted gray;
+    background-color: lightgray;
+}
+
+th,td {
+    padding: 3px 5px 2px 5px;
+    border: 1px solid #73afb7;
+}
