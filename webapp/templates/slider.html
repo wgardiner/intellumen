@@ -8,104 +8,173 @@
 <script src="//code.jquery.com/ui/1.10.4/jquery-ui.js"></script>
 <!--<link rel="stylesheet" href="/resources/demos/style.css">-->
 <style>
-	{% for color in colors %}
-	#{{color.slug}}Slider {
-		margin: 5px;
-		margin-left: 15px;
-		margin-right: 15px;
-		float: left;
-		clear: left;
-		width: 300px;
-	}
-	#{{color.slug}}Input {
-		width: 3em;
-	}
-	#{{color.slug}}Slider .ui-slider-range {
-		background: #{{color.hex}};
-	}
-	#{{color.slug}}Slider .ui-slider-handle {
-		border-color: #{{color.hex}};
-	}
-	{% endfor %}
+    .slider {
+        margin: 5px;
+        margin-left: 15px;
+        margin-right: 15px;
+        float: left;
+        clear: left;
+        width: 300px;
+    }
+    .input {
+        width: 3em;
+    }
 
-	#swatch {
-		width: 120px;
-		height: 100px;
-		margin-top: 18px;
-		margin-left: 350px;
-		background-image: none;
-	}
+
+/* TODO
+    #{ {color.slug} }Slider .ui-slider-range {
+        background: #{ {color.hex} };
+    }
+    #{ {color.slug} }Slider .ui-slider-handle {
+        border-color: #{ {color.hex} };
+    }
+*/
+
+    #swatch {
+        width: 120px;
+        height: 100px;
+        margin-top: 18px;
+        margin-left: 350px;
+        background-image: none;
+    }
 </style>
 <script>
 AUTO_UPLOAD = true;
 
 function hexFromRGB(r, g, b) {
-	var hex = [
-		r.toString( 16 ),
-		g.toString( 16 ),
-		b.toString( 16 )
-	];
-	$.each( hex, function( nr, val ) {
-		if ( val.length === 1 ) {
-			hex[ nr ] = "0" + val;
-		}
-	});
-	return hex.join( "" ).toUpperCase();
+    var hex = [
+        r.toString( 16 ),
+        g.toString( 16 ),
+        b.toString( 16 )
+    ];
+    $.each( hex, function( nr, val ) {
+        if ( val.length === 1 ) {
+            hex[ nr ] = "0" + val;
+        }
+    });
+    return hex.join( "" ).toUpperCase();
 }
 
-function refresh() {
-	var colors = {};
-	{% for color in colors %}
-		colors.{{color.slug}} = $("#{{color.slug}}Slider").slider("value");
-		// Infinite loop?
-		$("#{{color.slug}}Input").val(colors.{{color.slug}});
-	{% endfor %}
+$.widget( "custom.colorpicker", {
+    _create: function() {
+    	var self = this; // So we'll have self available even if this is redefined.
 
-	if (AUTO_UPLOAD) {
-		// todo: ajax
-		console.log(colors);
-	}
+		self.colors = {};
+    	$.each(self.options.colors, function (idx, color) {
+    		self.colors[color.slug] = color;
+    	});
+
+    	var table = $("<table/>");
+    	self.element.append(table);
+    	$.each(self.options.colors, function (idx, color) {
+    		// Build the DOM (tr with 3 td, [label, slider, input])
+    		var tr = $("<tr/>");
+
+    		var label = $("<label/>");
+    		label.text(color.name);
+	   		label.addClass("label");
+    		tr.append($("<td/>").append(label));
+
+    		var slider = $("<div/>");
+    		slider.addClass("slider");
+    		slider.slider({
+	            orientation: "horizontal",
+	            range: "min",
+	            max: 255,
+	            value: color.value
+	        });
+	        tr.append($("<td/>").append(slider));
+
+	        var input = $("<input max='255' type='text'/>");
+	        input.addClass("input");
+	        input.val(color.value);
+	        tr.append($("<td/>").append(input));
+
+	        table.append(tr);
+
+	        // Create the slider onChange function
+	        var sliderChanged = function() {
+	        	// `this` is redefined as the slider here
+	        	var val = slider.slider("value");
+	        	self.colors[color.slug].value = val;
+	        	input.val(val);
+	        	if(self.options.callback) {
+	        		self.options.callback(self.colors);
+	        	}
+	        };
+
+	        // Create the input onChange function
+	        var inputChanged = function() {
+	        	// `this` is redefined as the input here
+	        	var val = input.val();
+	        	self.colors[color.slug].value = val;
+	        	slider.slider("value", val);
+	        	//slider.slider("refresh");
+	        	if(self.options.callback) {
+	        		self.options.callback(self.colors);
+	        	}
+	        };
+
+	        // Wire the slider to the input and vice versa
+	        slider.slider('option', 'slide', sliderChanged);
+	        slider.slider('option', 'change', sliderChanged);
+	        input.change(inputChanged);
+	        input.keyup(inputChanged);
+    	});
+    }
+
+    /*// Create a public method.
+    value: function( value ) {
+        // No value passed, act as a getter.
+        if ( value === undefined ) {
+            return this.options.value;
+        }
+        // Value passed, act as a setter.
+        this.options.value = this._constrain( value );
+        var progress = this.options.value + "%";
+        this.element.text( progress );
+    },
+
+    // Create a private method.
+    _constrain: function( value ) {
+        if ( value > 100 ) {
+            value = 100;
+        }
+        if ( value < 0 ) {
+            value = 0;
+        }
+        return value;
+    }*/
+});
 
 
-		//hex = hexFromRGB( red, green, blue );
-	//$( "#swatch" ).css( "background-color", "#" + hex );
-}
+
 
 $(function() {
-	{% for color in colors %}
-		$( "#{{color.slug}}Slider" ).slider({
-			orientation: "horizontal",
-			range: "min",
-			max: 255,
-			slide: refresh,
-			change: refresh,
-			value: {{color.value}}
-		});
-		var inpChange = function() {
-			$( "#{{color.slug}}Slider" ).slider('value', this.value);
-		}
-		$( "#{{color.slug}}Input" ).val({{color.value}});
-		$( "#{{color.slug}}Input" ).change(inpChange);
-		$( "#{{color.slug}}Input" ).keyup(inpChange);
-	{% endfor %}
+	$("#colorPicker1").colorpicker({
+        colors: [
+        	{name: "Red", slug: "red", value: 125, hex: "ff5600"},
+            {name: "Green", slug: "green", value: 55, hex: "2fff00"},
+            {name: "Blue", slug: "blue", value: 220, hex: "0066ff"},
+            {name: "Amber", slug: "amber", value: 110, hex: "ffd700"},
+            {name: "Cool White", slug: "coolWhite", value: 120, hex: "fff9fd"},
+            {name: "Warm White", slug: "warmWhite", value: 130, hex: "ffc58f"},
+        ],
+        callback: function(colors) {
+        	console.log("Colors changed.");
+        	console.log(colors);
+        }
+    })
 });
 
 </script>
 </head>
 <body class="ui-widget-content" style="border:0;">
 <p class="ui-state-default ui-corner-all ui-helper-clearfix" style="padding:4px;">
-	<span class="ui-icon ui-icon-pencil" style="float:left; margin:-2px 5px 0 0;"></span>
-	Simple Colorpicker
+    <span class="ui-icon ui-icon-pencil" style="float:left; margin:-2px 5px 0 0;"></span>
+    Simple Colorpicker
 </p>
-<table>
-{% for color in colors %}
-<tr>
-	<td><label id="{{color.slug}}Label">{{color.name}}</label></td>
-	<td><div id="{{color.slug}}Slider"></div></td>
-	<td><input type="text" id="{{color.slug}}Input" value="{{color.value}}" max="255" /></td>
-</tr>
-{% endfor %}
-</table>
+<div id="colorPicker1"></div>
 <!--<div id="swatch" class="ui-widget-content ui-corner-all"></div>-->
 </body>
 </html>
