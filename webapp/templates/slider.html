@@ -20,16 +20,6 @@
         width: 3em;
     }
 
-
-/* TODO
-    #{ {color.slug} }Slider .ui-slider-range {
-        background: #{ {color.hex} };
-    }
-    #{ {color.slug} }Slider .ui-slider-handle {
-        border-color: #{ {color.hex} };
-    }
-*/
-
     #swatch {
         width: 120px;
         height: 100px;
@@ -39,7 +29,6 @@
     }
 </style>
 <script>
-AUTO_UPLOAD = true;
 
 function hexFromRGB(r, g, b) {
     var hex = [
@@ -55,18 +44,51 @@ function hexFromRGB(r, g, b) {
     return hex.join( "" ).toUpperCase();
 }
 
+function clone(obj) {
+    // Handle the 3 simple types, and null or undefined
+    if (null == obj || "object" != typeof obj) return obj;
+
+    // Handle Date
+    if (obj instanceof Date) {
+        var copy = new Date();
+        copy.setTime(obj.getTime());
+        return copy;
+    }
+
+    // Handle Array
+    if (obj instanceof Array) {
+        var copy = [];
+        for (var i = 0, len = obj.length; i < len; i++) {
+            copy[i] = clone(obj[i]);
+        }
+        return copy;
+    }
+
+    // Handle Object
+    if (obj instanceof Object) {
+        var copy = {};
+        for (var attr in obj) {
+            if (obj.hasOwnProperty(attr)) copy[attr] = clone(obj[attr]);
+        }
+        return copy;
+    }
+
+    throw new Error("Unable to copy obj! Its type isn't supported.");
+}
+
 $.widget( "custom.colorpicker", {
     _create: function() {
     	var self = this; // So we'll have self available even if this is redefined.
 
-		self.colors = {};
+		self._colors = {};
+		self._elms = {};
     	$.each(self.options.colors, function (idx, color) {
-    		self.colors[color.slug] = color;
+    		self._colors[color.slug] = clone(color);
     	});
 
     	var table = $("<table/>");
     	self.element.append(table);
-    	$.each(self.options.colors, function (idx, color) {
+    	$.each(self._colors, function (idx, color) {
     		// Build the DOM (tr with 3 td, [label, slider, input])
     		var tr = $("<tr/>");
 
@@ -83,6 +105,9 @@ $.widget( "custom.colorpicker", {
 	            max: 255,
 	            value: color.value
 	        });
+
+    		slider.children(".ui-slider-range, .ui-slider-handle").css("background", "#" + color.hex);
+
 	        tr.append($("<td/>").append(slider));
 
 	        var input = $("<input max='255' type='text'/>");
@@ -90,16 +115,19 @@ $.widget( "custom.colorpicker", {
 	        input.val(color.value);
 	        tr.append($("<td/>").append(input));
 
+	        self._elms[color.slug] = {input: input, slider: slider};
+
 	        table.append(tr);
 
 	        // Create the slider onChange function
 	        var sliderChanged = function() {
 	        	// `this` is redefined as the slider here
 	        	var val = slider.slider("value");
-	        	self.colors[color.slug].value = val;
+	        	var oldVal = self._colors[color.slug].value;
+	        	self._colors[color.slug].value = val;
 	        	input.val(val);
-	        	if(self.options.callback) {
-	        		self.options.callback(self.colors);
+	        	if(self.options.callback && val != oldVal) {
+	        		self.options.callback(self.colors(), self._colors);
 	        	}
 	        };
 
@@ -107,11 +135,12 @@ $.widget( "custom.colorpicker", {
 	        var inputChanged = function() {
 	        	// `this` is redefined as the input here
 	        	var val = input.val();
-	        	self.colors[color.slug].value = val;
+	        	var oldVal = self._colors[color.slug].value;
+	        	self._colors[color.slug].value = val;
 	        	slider.slider("value", val);
 	        	//slider.slider("refresh");
-	        	if(self.options.callback) {
-	        		self.options.callback(self.colors);
+	        	if(self.options.callback && val != oldVal) {
+	        		self.options.callback(self.colors(), self._colors);
 	        	}
 	        };
 
@@ -121,6 +150,42 @@ $.widget( "custom.colorpicker", {
 	        input.change(inputChanged);
 	        input.keyup(inputChanged);
     	});
+
+		if (self.options.submit) {
+			self.element.append($("<button/>").text("Submit").click(function() {
+				self.options.submit(self.colors(), self._colors);
+			}));
+		}
+    },
+
+    // Dumps the whole internal color datatype, but can't be used as a setter
+    colorData: function() {
+    	// Can only act as a getter
+    	return this._colors;
+    },
+
+    // Works with structure like: {slug: val, slug: val, ...} (e.g. {red: 211, blue: 200, green: 125, amber: 100})
+    colors: function( colors ) {
+    	// No value passed, act as a getter.
+    	if (colors === undefined) {
+    		var colvals = {};
+    		for (var slug in this._colors) {
+    			colvals[slug] = this._colors[slug].value;
+    		}
+    		return colvals;
+    	}
+
+    	// Value passed, act as a setter
+    	var changed = false;
+    	for (var slug in colors) {
+    		var newColor = colors[slug];
+    		var currentColor = this._colors[slug];
+    		if (this._colors[slug] !== undefined && newColor !== undefined) {
+    			this._colors[slug].value = newColor;
+    			this._elms[slug].slider.slider('value', newColor);
+    			this._elms[slug].input.val(newColor);
+    		}
+    	}
     }
 
     /*// Create a public method.
@@ -147,34 +212,136 @@ $.widget( "custom.colorpicker", {
     }*/
 });
 
-
-
-
 $(function() {
-	$("#colorPicker1").colorpicker({
-        colors: [
-        	{name: "Red", slug: "red", value: 125, hex: "ff5600"},
-            {name: "Green", slug: "green", value: 55, hex: "2fff00"},
-            {name: "Blue", slug: "blue", value: 220, hex: "0066ff"},
-            {name: "Amber", slug: "amber", value: 110, hex: "ffd700"},
-            {name: "Cool White", slug: "coolWhite", value: 120, hex: "fff9fd"},
-            {name: "Warm White", slug: "warmWhite", value: 130, hex: "ffc58f"},
-        ],
+	var colors = [
+    	{name: "Red", slug: "red", value: 125, hex: "ff5600"},
+        {name: "Green", slug: "green", value: 55, hex: "2fff00"},
+        {name: "Blue", slug: "blue", value: 220, hex: "0066ff"},
+        {name: "Amber", slug: "amber", value: 110, hex: "ffd700"},
+        {name: "Cool White", slug: "coolWhite", value: 120, hex: "fff9fd"},
+        {name: "Warm White", slug: "warmWhite", value: 130, hex: "ffc58f"},
+    ];
+
+	var cps = $("#colorPickerSet").colorpicker({
+        colors: colors,
         callback: function(colors) {
-        	console.log("Colors changed.");
-        	console.log(colors);
+        	$.ajax({
+        		url: '/colorVals',
+        		type: 'post',
+        		data: JSON.stringify(colors),
+        		contentType: 'application/json; charset=UTF-8', // This is the money shot
+        		dataType: 'json',
+        		success: function(data) {
+        			console.log("AJAX response:");
+        			console.log(data);
+        		},
+        		error: function() {
+        			console.log("Error in AJAX callback");
+        		}
+        	});
         }
-    })
+    });
+
+    var blink1 = $("#blinkCP1").colorpicker({
+        colors: colors,
+    });
+
+    var blink2 = $("#blinkCP2").colorpicker({
+        colors: colors
+    });
+
+    $("#blinkBtn").click(function() {
+    	var time = $("#blinkTime").val();
+    	var col1 = blink1.colorpicker('colors');
+    	var col2 = blink2.colorpicker('colors');
+
+        if ($('#blinkBtn').text() == 'Start Blink') {
+            console.log("Starting blink...");
+            $('#blinkBtn').text('Stop Blink');
+        	$.ajax({
+        		url: '/startBlink',
+        		type: 'post',
+                data: JSON.stringify({'color1': col1, 'color2': col2, 'ms': parseInt($('input#blinkTime').val())}),
+        		contentType: 'application/json; charset=UTF-8', // This is the money shot
+        		dataType: 'json',
+        		success: function(data) {
+        			console.log("AJAX response:");
+        			console.log(data);
+        		},
+        		error: function() {
+        			console.log("Error in AJAX callback");
+        		}
+        	});
+        }
+        else if ($('#blinkBtn').text() == 'Stop Blink') {
+            console.log("Stopping blink...");
+            $('#blinkBtn').text('Start Blink');
+        	$.ajax({
+        		url: '/stopBlink',
+        		type: 'post',
+                data: JSON.stringify({}),
+        		contentType: 'application/json; charset=UTF-8', // This is the money shot
+        		dataType: 'json',
+        		success: function(data) {
+        			console.log("AJAX response:");
+        			console.log(data);
+        		},
+        		error: function() {
+        			console.log("Error in AJAX callback");
+        		}
+        	});
+        }
+    });
+
+    var colorSource = new EventSource('/colorStream');
+	colorSource.onmessage = function (event) {
+		var data = JSON.parse(event.data);
+	    cps.colorpicker('colors', data);
+	};
+
+    var commandSource = new EventSource('/commandStream');
+	commandSource.onmessage = function (event) {
+		var data = JSON.parse(event.data);
+        if (data.command == 'stopblink') {
+            // No longer blinking
+            $('button#blinkBtn').text('Start Blink');
+        }
+        if (data.command == 'startblink') {
+            // Someone else started blinking
+            $('button#blinkBtn').text('Stop Blink');
+            blink1.colorpicker('colors', data['color1']);
+            blink2.colorpicker('colors', data['color2']);
+            $('input#blinkTime').val(data['ms']);
+        }
+	    cps.colorpicker('colors', data);
+	};
+
+    /*window.setInterval(function() { 
+    	$.ajax({
+    		url: '/colorVals',
+    		type: 'get',
+    		dataType: 'json',
+    		success: function(colorVals) {
+    			cps.colorpicker('colors', colorVals);
+    		}
+    	});
+    }, 500);*/
 });
 
 </script>
 </head>
-<body class="ui-widget-content" style="border:0;">
-<p class="ui-state-default ui-corner-all ui-helper-clearfix" style="padding:4px;">
-    <span class="ui-icon ui-icon-pencil" style="float:left; margin:-2px 5px 0 0;"></span>
-    Simple Colorpicker
-</p>
-<div id="colorPicker1"></div>
+<fieldset><legend>Direct Color Change</legend>
+<div id="colorPickerSet"></div>
+</fieldset>
+
+<fieldset><legend>Blink</legend>
+<h2>From Color</h2>
+<div id="blinkCP1"></div>
+<h2>To Color</h2>
+<div id="blinkCP2"></div>
+<label>Time (ms): <input min="100" max="60000" type="text" id="blinkTime" /></label>
+<button id="blinkBtn">Start Blink</button>
+</fieldset>
 <!--<div id="swatch" class="ui-widget-content ui-corner-all"></div>-->
 </body>
 </html>
