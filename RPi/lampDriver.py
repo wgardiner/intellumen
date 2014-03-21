@@ -10,27 +10,68 @@ def remove_blink_commands():
     cmds = []
     while True:
         try:
-            cmd = scheduler_queue.get(False)
+            pri, lampCmd = scheduler_queue.get(False)
         except Queue.Empty:
             break
-        if cmd[1]['command'] != 'blink':
-            cmds.append(cmd)
+        if lampCmd['command'] != 'blink':
+            cmds.append((pri, lampCmd))
 
-    for cmd in cmds:
-        scheduler_queue.put(cmd)
+    # Put all the non-blink commands back onto the queue
+    for elm in cmds:
+        scheduler_queue.put(elm)
 
-currentColor = None
-def set_color(redis, color):
-    global currentColor
+def update_color_state(redis):
+    pass #TODO: Write me, and probably make a lamp class
+
+def update_sensor_state(redis):
+    pass #TODO: Write me, and probably make a lamp class
+
+def set_color(redis, color, fromUi=False):
+    try:
+        currentColor = json.loads(redis.get('ledColor'))
+    except:
+        currentColor = None
+        raise
+
     if color != currentColor:
         print 'would set lamp color to:', color
-        redis.publish('colorVals', json.dumps(color))
+        if not fromUi:
+            redis.publish('stateChanges', json.dumps({'ledColor': color}))
+        redis.set('ledColor', json.dumps(color))
 
-class RedisThread(threading.Thread):
+class RedisStateMonitorThread(threading.Thread):
     def run(self):
         red = Redis()
         pubsub = red.pubsub()
-        pubsub.subscribe('commands')
+        pubsub.subscribe('stateChanges')
+        for message in pubsub.listen():
+            try:
+                stch = json.loads(message['data'])
+            except TypeError:
+                time.sleep(1)
+                continue
+
+            print 'got state change', stch
+
+            if hasattr(self, '_shutdown') and self._shutdown: return
+
+            if 'ledColor' in stch:
+                scheduler_queue.put((datetime.datetime.utcnow(), {'command': 'setcolor', 'color': stch['ledColor']}))
+
+            if 'blink' in stch:
+                # remove existing blink commands
+                remove_blink_commands()
+
+                blink = stch['blink']
+                if blink['blinking']:
+                    # add a new blink command
+                    scheduler_queue.put((datetime.datetime.utcnow(), {'command': 'blink', 'ms': blink['ms'], 'color1': blink['color1'], 'color2': blink['color2']}))
+
+class RedisLampCommandThread(threading.Thread):
+    def run(self):
+        red = Redis()
+        pubsub = red.pubsub()
+        pubsub.subscribe('lampCommands')
         for message in pubsub.listen():
             try:
                 cmd = json.loads(message['data'])
@@ -40,22 +81,9 @@ class RedisThread(threading.Thread):
 
             print 'got command', cmd
 
-            if hasattr(self, '_shutdown') and self._shutdown: return
+            scheduler_queue.put((datetime.datetime.utcnow(), cmd))
 
-            if cmd['command'] == 'startblink':
-                # remove existing blink commands
-                remove_blink_commands()
 
-                # add a new blink command
-                scheduler_queue.put((datetime.datetime.utcnow(), {'command': 'blink', 'ms': cmd['ms'], 'color1': cmd['color1'], 'color2': cmd['color2']}))
-            
-            elif cmd['command'] == 'stopblink':
-                # remove existing blink commands
-                remove_blink_commands()
-
-            elif cmd['command'] == 'setcolor':
-                scheduler_queue.put((datetime.datetime.utcnow(), {'command': 'setcolor', 'color': cmd['color']}))
-        
 class LampThread(threading.Thread):
     def run(self):
         red = Redis()
@@ -74,16 +102,29 @@ class LampThread(threading.Thread):
                 continue
 
             if cmd['command'] == 'setcolor':
-                set_color(red, cmd['color'])
+                set_color(red, cmd['color'], fromUi=True)
+
+            elif cmd['command'] == 'refreshcolor':
+                update_color_state(red)
+
+            elif cmd['command'] == 'readsensor':
+                update_sensor_state(red)
 
             elif cmd['command'] == 'blink':
                 set_color(red, cmd['color1'])
                 # schedule other half of blink
                 scheduler_queue.put((datetime.datetime.utcnow() + datetime.timedelta(0, cmd['ms'] / 1000.0), {'command': 'blink', 'ms': cmd['ms'], 'color1': cmd['color2'], 'color2': cmd['color1']}))
 
-lt = LampThread()
-rt = RedisThread()
-lt.start()
-rt.start()
-lt.join()
-rt.join()
+threads = [LampThread(), RedisStateMonitorThread(), RedisLampCommandThread()]
+
+for t in threads:
+    t.start()
+
+try:
+    for t in threads:
+        while t.is_alive():
+            t.join(1)
+except:
+    for t in threads:
+        t._shutdown = True
+    raise

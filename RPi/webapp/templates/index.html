@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>jQuery UI Slider - Colorpicker</title>
+<title>Intellumen</title>
 <link rel="stylesheet" href="//code.jquery.com/ui/1.10.4/themes/smoothness/jquery-ui.css">
 <script src="//code.jquery.com/jquery-1.9.1.js"></script>
 <script src="//code.jquery.com/ui/1.10.4/jquery-ui.js"></script>
@@ -19,30 +19,8 @@
     .input {
         width: 3em;
     }
-
-    #swatch {
-        width: 120px;
-        height: 100px;
-        margin-top: 18px;
-        margin-left: 350px;
-        background-image: none;
-    }
 </style>
 <script>
-
-function hexFromRGB(r, g, b) {
-    var hex = [
-        r.toString( 16 ),
-        g.toString( 16 ),
-        b.toString( 16 )
-    ];
-    $.each( hex, function( nr, val ) {
-        if ( val.length === 1 ) {
-            hex[ nr ] = "0" + val;
-        }
-    });
-    return hex.join( "" ).toUpperCase();
-}
 
 function clone(obj) {
     // Handle the 3 simple types, and null or undefined
@@ -119,6 +97,8 @@ $.widget( "custom.colorpicker", {
 
 	        table.append(tr);
 
+            self._justChanged = false;
+
 	        // Create the slider onChange function
 	        var sliderChanged = function() {
 	        	// `this` is redefined as the slider here
@@ -129,6 +109,10 @@ $.widget( "custom.colorpicker", {
 	        	if(self.options.callback && val != oldVal) {
 	        		self.options.callback(self.colors(), self._colors);
 	        	}
+
+                // mark as "just changed" for 100ms to avoid feedback loops
+                self._justChanged = true;
+                window.setTimeout(function() { self._justChanged = false; }, 100);
 	        };
 
 	        // Create the input onChange function
@@ -142,6 +126,10 @@ $.widget( "custom.colorpicker", {
 	        	if(self.options.callback && val != oldVal) {
 	        		self.options.callback(self.colors(), self._colors);
 	        	}
+
+                // mark as "just changed" for 100ms to avoid feedback loops
+                self._justChanged = true;
+                window.setTimeout(function() { self._justChanged = false; }, 100);
 	        };
 
 	        // Wire the slider to the input and vice versa
@@ -187,145 +175,139 @@ $.widget( "custom.colorpicker", {
     		}
     	}
     }
-
-    /*// Create a public method.
-    value: function( value ) {
-        // No value passed, act as a getter.
-        if ( value === undefined ) {
-            return this.options.value;
-        }
-        // Value passed, act as a setter.
-        this.options.value = this._constrain( value );
-        var progress = this.options.value + "%";
-        this.element.text( progress );
-    },
-
-    // Create a private method.
-    _constrain: function( value ) {
-        if ( value > 100 ) {
-            value = 100;
-        }
-        if ( value < 0 ) {
-            value = 0;
-        }
-        return value;
-    }*/
 });
 
 $(function() {
-	var colors = [
-    	{name: "Red", slug: "red", value: 125, hex: "ff5600"},
-        {name: "Green", slug: "green", value: 55, hex: "2fff00"},
-        {name: "Blue", slug: "blue", value: 220, hex: "0066ff"},
-        {name: "Amber", slug: "amber", value: 110, hex: "ffd700"},
-        {name: "Cool White", slug: "coolWhite", value: 120, hex: "fff9fd"},
-        {name: "Warm White", slug: "warmWhite", value: 130, hex: "ffc58f"},
-    ];
+	var CONFIG, STATE;
+    var cpSet, cpBlink1, cpBlink2;
 
-	var cps = $("#colorPickerSet").colorpicker({
-        colors: colors,
-        callback: function(colors) {
-        	$.ajax({
-        		url: '/colorVals',
-        		type: 'post',
-        		data: JSON.stringify(colors),
-        		contentType: 'application/json; charset=UTF-8', // This is the money shot
-        		dataType: 'json',
-        		success: function(data) {
-        			console.log("AJAX response:");
-        			console.log(data);
-        		},
-        		error: function() {
-        			console.log("Error in AJAX callback");
-        		}
-        	});
+    function sendCommand(command) {
+        $.ajax({
+                url: '/json/command',
+                type: 'post',
+                data: JSON.stringify(command),
+                contentType: 'application/json; charset=UTF-8', // This is the money shot
+                dataType: 'json',
+                error: function() {
+                    console.log("Error in sending command");
+                }
+            });
+    }
+
+    function updateState(state) {
+        for (var key in state) {
+            STATE[key] = state[key];
+        }
+
+        console.log("Handling state object: " + JSON.stringify(state));
+        if (state.ledColor !== undefined) {
+            cpSet.colorpicker('colors', state.ledColor);
+        }
+
+        if (state.blink !== undefined) {
+            if (state.blink.blinking) {
+                $('#blinkBtn').text('Stop Blink');
+            }
+            else {
+                $('#blinkBtn').text('Start Blink');
+            }
+
+            if (state.blink.ms !== undefined) {
+                $('input#blinkTime').val(state.blink.ms);
+            }
+            if (state.blink.color1 !== undefined) {
+                cpBlink1.colorpicker('colors', state.blink.color1);
+            }
+            if (state.blink.color2 !== undefined) {
+                cpBlink2.colorpicker('colors', state.blink.color2);
+            }
+        }
+    }
+
+    function buildIfReady() {
+        if (!CONFIG || !STATE)
+            return;
+
+        cpSet = $("#colorPickerSet").colorpicker({
+            colors: CONFIG['colors'],
+            callback: function(colors) {
+                sendCommand({command: 'setcolor', color: colors});
+            }
+        });
+
+        cpBlink1 = $("#blinkCP1").colorpicker({
+            colors: CONFIG['colors']
+        });
+
+        cpBlink2 = $("#blinkCP2").colorpicker({
+            colors: CONFIG['colors']
+        });
+
+        // Wire up the blink button
+        $("#blinkBtn").click(function() {
+            var time = $("#blinkTime").val();
+            var col1 = cpBlink1.colorpicker('colors');
+            var col2 = cpBlink2.colorpicker('colors');
+
+            console.log(STATE);
+            if (!STATE.blink || !STATE.blink.blinking) {
+                var ms = parseInt($('input#blinkTime').val());
+                if (isNaN(ms) || ms < 100 || ms > 60000) {
+                    alert("Blink time must be between 100ms and 60 000ms.");
+                    return;
+                }
+
+                console.log("Starting blink...");
+                $('#blinkBtn').text('Stop Blink');
+                
+                sendCommand({command: 'startblink', color1: col1, color2: col2, ms: ms})
+            }
+            else {
+                console.log("Stopping blink...");
+                $('#blinkBtn').text('Start Blink');
+                
+                sendCommand({command: 'stopblink'})
+            }
+        });
+
+        // Load the state
+        updateState(STATE);
+    }
+
+    // Load the UI config
+    $.ajax({
+        url: '/json/config',
+        type: 'get',
+        dataType: 'json',
+        success: function(data) {
+            CONFIG = data;
+            buildIfReady();
+        },
+        error: function() {
+            console.log("Unable to load configuration data.");
         }
     });
 
-    var blink1 = $("#blinkCP1").colorpicker({
-        colors: colors,
-    });
-
-    var blink2 = $("#blinkCP2").colorpicker({
-        colors: colors
-    });
-
-    $("#blinkBtn").click(function() {
-    	var time = $("#blinkTime").val();
-    	var col1 = blink1.colorpicker('colors');
-    	var col2 = blink2.colorpicker('colors');
-
-        if ($('#blinkBtn').text() == 'Start Blink') {
-            console.log("Starting blink...");
-            $('#blinkBtn').text('Stop Blink');
-        	$.ajax({
-        		url: '/startBlink',
-        		type: 'post',
-                data: JSON.stringify({'color1': col1, 'color2': col2, 'ms': parseInt($('input#blinkTime').val())}),
-        		contentType: 'application/json; charset=UTF-8', // This is the money shot
-        		dataType: 'json',
-        		success: function(data) {
-        			console.log("AJAX response:");
-        			console.log(data);
-        		},
-        		error: function() {
-        			console.log("Error in AJAX callback");
-        		}
-        	});
-        }
-        else if ($('#blinkBtn').text() == 'Stop Blink') {
-            console.log("Stopping blink...");
-            $('#blinkBtn').text('Start Blink');
-        	$.ajax({
-        		url: '/stopBlink',
-        		type: 'post',
-                data: JSON.stringify({}),
-        		contentType: 'application/json; charset=UTF-8', // This is the money shot
-        		dataType: 'json',
-        		success: function(data) {
-        			console.log("AJAX response:");
-        			console.log(data);
-        		},
-        		error: function() {
-        			console.log("Error in AJAX callback");
-        		}
-        	});
+    // and the current state
+    $.ajax({
+        url: '/json/state',
+        type: 'get',
+        dataType: 'json',
+        success: function(data) {
+            STATE = data;
+            buildIfReady();
+        },
+        error: function() {
+            console.log("Unable to load configuration data.");
         }
     });
 
-    var colorSource = new EventSource('/colorStream');
-	colorSource.onmessage = function (event) {
+    // Wire up the stream
+    var stream = new EventSource('/json/stream');
+	stream.onmessage = function (event) {
 		var data = JSON.parse(event.data);
-	    cps.colorpicker('colors', data);
+        updateState(data);
 	};
-
-    var commandSource = new EventSource('/commandStream');
-	commandSource.onmessage = function (event) {
-		var data = JSON.parse(event.data);
-        if (data.command == 'stopblink') {
-            // No longer blinking
-            $('button#blinkBtn').text('Start Blink');
-        }
-        if (data.command == 'startblink') {
-            // Someone else started blinking
-            $('button#blinkBtn').text('Stop Blink');
-            blink1.colorpicker('colors', data['color1']);
-            blink2.colorpicker('colors', data['color2']);
-            $('input#blinkTime').val(data['ms']);
-        }
-	    cps.colorpicker('colors', data);
-	};
-
-    /*window.setInterval(function() { 
-    	$.ajax({
-    		url: '/colorVals',
-    		type: 'get',
-    		dataType: 'json',
-    		success: function(colorVals) {
-    			cps.colorpicker('colors', colorVals);
-    		}
-    	});
-    }, 500);*/
 });
 
 </script>
@@ -340,8 +322,7 @@ $(function() {
 <h2>To Color</h2>
 <div id="blinkCP2"></div>
 <label>Time (ms): <input min="100" max="60000" type="text" id="blinkTime" /></label>
-<button id="blinkBtn">Start Blink</button>
+<button id="blinkBtn"></button>
 </fieldset>
-<!--<div id="swatch" class="ui-widget-content ui-corner-all"></div>-->
 </body>
 </html>
