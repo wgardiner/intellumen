@@ -179,7 +179,7 @@ $.widget( "custom.colorpicker", {
 
 $(function() {
 	var CONFIG, STATE;
-    var cpSet, cpBlink1, cpBlink2;
+    var cpSet, cpBlink1, cpBlink2, cpFade1, cpFade2;
 
     function sendCommand(command) {
         $.ajax({
@@ -215,11 +215,33 @@ $(function() {
             if (state.blink.ms !== undefined) {
                 $('input#blinkTime').val(state.blink.ms);
             }
+            if (state.blink.numBlinks !== undefined) {
+                $('input#numBlinks').val(state.blink.numBlinks);
+            }
             if (state.blink.color1 !== undefined) {
                 cpBlink1.colorpicker('colors', state.blink.color1);
             }
             if (state.blink.color2 !== undefined) {
                 cpBlink2.colorpicker('colors', state.blink.color2);
+            }
+        }
+
+        if (state.fade !== undefined) {
+            if (state.fade.fading) {
+                $('#fadeBtn').text('Stop Fade');
+            }
+            else {
+                $('#fadeBtn').text('Start Fade');
+            }
+
+            if (state.fade.ms !== undefined) {
+                $('input#fadeTime').val(state.fade.time);
+            }
+            if (state.fade.color1 !== undefined) {
+                cpFade1.colorpicker('colors', state.fade.color1);
+            }
+            if (state.fade.color2 !== undefined) {
+                cpFade2.colorpicker('colors', state.fade.color2);
             }
         }
     }
@@ -257,16 +279,59 @@ $(function() {
                     return;
                 }
 
+                var numBlinks = parseInt($('input#numBlinks').val());
+                if (isNaN(numBlinks) || numBlinks == 0) {
+                    numBlinks = null;
+                } else if (numBlinks < 1) {
+                    alert("Number of blinks must be a positive number (or zero/blank for infinite).");
+                    return;
+                }
+
                 console.log("Starting blink...");
                 $('#blinkBtn').text('Stop Blink');
                 
-                sendCommand({command: 'startblink', color1: col1, color2: col2, ms: ms})
+                sendCommand({command: 'startblink', color1: col1, color2: col2, ms: ms, numBlinks: numBlinks})
             }
             else {
                 console.log("Stopping blink...");
                 $('#blinkBtn').text('Start Blink');
                 
                 sendCommand({command: 'stopblink'})
+            }
+        });
+
+        cpFade1 = $("#fadeCP1").colorpicker({
+            colors: CONFIG['colors']
+        });
+
+        cpFade2 = $("#fadeCP2").colorpicker({
+            colors: CONFIG['colors']
+        });
+
+        // Wire up the fade button
+        $("#fadeBtn").click(function() {
+            var time = $("#fadeTime").val();
+            var col1 = cpFade1.colorpicker('colors');
+            var col2 = cpFade2.colorpicker('colors');
+
+            console.log(STATE);
+            if (!STATE.fade || !STATE.fade.fading) {
+                var time = parseInt($('input#fadeTime').val());
+                if (isNaN(time) || time < 5 || time > 172800) {
+                    alert("Fade time must be between 5 seconds and 172800 seconds.");
+                    return;
+                }
+
+                console.log("Starting fade...");
+                $('#fadeBtn').text('Stop Fade');
+                
+                sendCommand({command: 'startfade', color1: col1, color2: col2, time: time})
+            }
+            else {
+                console.log("Stopping fade...");
+                $('#fadeBtn').text('Start Fade');
+                
+                sendCommand({command: 'stopfade'})
             }
         });
 
@@ -312,6 +377,7 @@ $(function() {
 
 </script>
 </head>
+
 <fieldset><legend>Direct Color Change</legend>
 <div id="colorPickerSet"></div>
 </fieldset>
@@ -321,8 +387,18 @@ $(function() {
 <div id="blinkCP1"></div>
 <h2>To Color</h2>
 <div id="blinkCP2"></div>
-<label>Time (ms): <input min="100" max="60000" type="text" id="blinkTime" /></label>
+<label>Time (ms): <input min="100" max="60000" type="text" id="blinkTime" /></label><br/>
+<label>Number of Blinks: <input min="0" type="text" id="numBlinks" /></label><br/>
 <button id="blinkBtn"></button>
+</fieldset>
+
+<fieldset><legend>Fade</legend>
+<h2>From Color</h2>
+<div id="fadeCP1"></div>
+<h2>To Color</h2>
+<div id="fadeCP2"></div>
+<label>Time (seconds): <input min="5" max="172800" type="text" id="fadeTime" /></label><br/>
+<button id="fadeBtn"></button>
 </fieldset>
 </body>
 </html>

@@ -18,7 +18,7 @@ import logging
 logging.basicConfig()
 logging.getLogger().setLevel(logging.DEBUG)
 
-STATE_VARS = ['ledColor', 'blink', 'sensor']
+STATE_VARS = ['ledColor', 'blink', 'fade']
 
 def get_config():
     return {
@@ -50,10 +50,16 @@ def handle_command(cmd):
         data = cmd['color']
     elif cmd['command'] == 'startblink':
         stateName = 'blink'
-        data = {'blinking': True, 'color1': cmd['color1'], 'color2': cmd['color2'], 'ms': int(cmd['ms'])}
+        data = {'blinking': True, 'color1': cmd['color1'], 'color2': cmd['color2'], 'ms': int(cmd['ms']), 'numBlinks': cmd['numBlinks']}
     elif cmd['command'] == 'stopblink':
         stateName = 'blink'
         data = {'blinking': False}
+    elif cmd['command'] == 'startfade':
+        stateName = 'fade'
+        data = {'fading': True, 'color1': cmd['color1'], 'color2': cmd['color2'], 'time': int(cmd['time'])}
+    elif cmd['command'] == 'stopfade':
+        stateName = 'fade'
+        data = {'fading': False}
     elif cmd['command'] == 'getcolor':
         emit = {'command': 'refreshcolor'}
 
