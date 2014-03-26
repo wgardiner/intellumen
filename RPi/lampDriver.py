@@ -7,6 +7,18 @@ import operator
 
 scheduler_queue = Queue.PriorityQueue()
 
+def change_state(redis, key, val, publish=True):
+    redis.set(key, json.dumps(val))
+    if publish:
+        redis.publish('stateChanges', json.dumps({key: val}))
+
+def change_state_var(redis, state, key, val):
+    s = json.loads(redis.get(state))
+    s[key] = val
+    redis.set(state, json.dumps(s))
+    s['reset'] = False
+    redis.publish('stateChanges', json.dumps({state: s}))
+
 def remove_commands(command):
     cmds = []
     while True:
@@ -71,22 +83,26 @@ class RedisStateMonitorThread(threading.Thread):
                 scheduler_queue.put((now, {'command': 'setcolor', 'sch': now, 'color': stch['ledColor']}))
 
             if 'blink' in stch:
-                # remove existing blink commands
-                remove_commands('blink')
-
                 blink = stch['blink']
-                if blink['blinking']:
-                    # add a new blink command
-                    scheduler_queue.put((now, {'command': 'blink', 'sch': now, 'ms': blink['ms'], 'color1': blink['color1'], 'color2': blink['color2'], 'numBlinks': blink['numBlinks']}))
+    
+                if blink.get('reset', None):
+                    # remove existing blink commands
+                    remove_commands('blink')
+
+                    if blink['blinking']:
+                        # add a new blink command
+                        scheduler_queue.put((now, {'command': 'blink', 'sch': now, 'ms': blink['ms'], 'color1': blink['color1'], 'color2': blink['color2'], 'numBlinks': blink['numBlinks']}))
 
             if 'fade' in stch:
-                # remove existing fade commands
-                remove_commands('fade')
-
                 fade = stch['fade']
-                if fade['fading']:
-                    # add a new fade command
-                    scheduler_queue.put((now, {'command': 'fade', 'sch': now, 'stopAt': fade['color2'], 'currentAt': fade['color1'], 'startAt': fade['color1'], 'time': fade['time']}))
+
+                if fade.get('reset', None):
+                    # remove existing fade commands
+                    remove_commands('fade')
+
+                    if fade['fading']:
+                        # add a new fade command
+                        scheduler_queue.put((now, {'command': 'fade', 'sch': now, 'stopAt': fade['color2'], 'currentAt': fade['color1'], 'startAt': fade['color1'], 'time': fade['time']}))
 
 class RedisLampCommandThread(threading.Thread):
     def run(self):
@@ -108,6 +124,8 @@ class RedisLampCommandThread(threading.Thread):
 class LampThread(threading.Thread):
     def run(self):
         red = Redis()
+        change_state(red, 'blink', {})
+        change_state(red, 'fade', {})
         while True:
             if hasattr(self, '_shutdown') and self._shutdown: return
 
@@ -145,6 +163,9 @@ class LampThread(threading.Thread):
                         datetime.datetime.utcnow() + datetime.timedelta(0, cmd['ms'] / 1000.0),
                         {'command': 'blink', 'ms': cmd['ms'], 'color1': cmd['color2'], 'color2': cmd['color1'], 'numBlinks': numBlinks, 'sch': cmd['sch']}
                     ))
+
+                    if numBlinks:
+                        change_state_var(red, 'blink', 'blinksRemaining', numBlinks)
                 else:
                     red.publish('stateChanges', json.dumps({'blink': {'blinking': False}}))
                     red.set('blink', json.dumps({'blinking': False}))
@@ -163,6 +184,13 @@ class LampThread(threading.Thread):
 
                 # determine scale factor for deltaC and deltaT so the biggest change in deltaC is ~= 1 unit
                 maxDeltaC = max(deltaC.iteritems(), key=lambda x: abs(x[1]))[1]
+                
+                percentComplete = None
+                for channel in fstop:
+                    try:
+                        percentComplete = abs(100.0 * (fstart[channel] - fcurrent[channel]) / (fstop[channel] - fstart[channel]))
+                    except ZeroDivisionError:
+                        pass
 
                 if maxDeltaC != 0:
                     scaleFactor = 1.0 / maxDeltaC
@@ -180,8 +208,14 @@ class LampThread(threading.Thread):
                     for channel in fcurrent:
                         fcurrent[channel] += deltaC[channel]
 
-                    # Set the color
-                    set_color(red, fcurrent)
+                    ### KLUDGE.... if we're blinking, don't change color in the fade
+                    
+                    blinkState = json.loads(red.get('blink'))
+                    if not blinkState or not blinkState.get('blinking', None):
+                        # Set the color
+                        set_color(red, fcurrent)
+
+                    ### END KLUDGE
 
                     # See if we should stop
                     nowstop = True
@@ -190,6 +224,8 @@ class LampThread(threading.Thread):
 
                     # schedule next event
                     if not nowstop:
+                        change_state_var(red, 'fade', 'percentComplete', percentComplete)
+
                         scheduler_queue.put((
                             datetime.datetime.utcnow() + datetime.timedelta(0, deltaT), 
                             {'command': 'fade', 'stopAt': fstop, 'currentAt': fcurrent, 'startAt': fstart, 'time': ftime, 'sch': cmd['sch']}
@@ -197,7 +233,11 @@ class LampThread(threading.Thread):
 
                     else:
                         # Just to ensure that the final color is perfect
-                        set_color(red, fstop)
+                        blinkState = json.loads(red.get('blink'))
+                        if not blinkState or not blinkState.get('blinking', None):
+                            set_color(red, fstop)
+
+                        #change_state_var(red, 'fade', 'percentComplete', 100)
 
                         red.publish('stateChanges', json.dumps({'fade': {'fading': False}}))
                         red.set('fade', json.dumps({'fading': False}))
@@ -206,6 +246,7 @@ class LampThread(threading.Thread):
                     # Stop fading, zero deltaC
                     red.publish('stateChanges', json.dumps({'fade': {'fading': False}}))
                     red.set('fade', json.dumps({'fading': False}))
+
 
                 
 threads = [LampThread(), RedisStateMonitorThread(), RedisLampCommandThread()]

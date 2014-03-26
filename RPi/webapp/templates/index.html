@@ -224,6 +224,16 @@ $(function() {
             if (state.blink.color2 !== undefined) {
                 cpBlink2.colorpicker('colors', state.blink.color2);
             }
+            if (state.blink.blinking) {
+                var t = "Blinking...";
+                if (state.blink.blinksRemaining) {
+                    t += " " + state.blink.blinksRemaining + " blinks remaining";
+                }
+                $("#blinking").text(t);
+            } else {
+                $("#blinking").text("");
+            }
+
         }
 
         if (state.fade !== undefined) {
@@ -242,6 +252,15 @@ $(function() {
             }
             if (state.fade.color2 !== undefined) {
                 cpFade2.colorpicker('colors', state.fade.color2);
+            }
+            if (state.fade.fading) {
+                var t = "Fading...";
+                if (state.fade.percentComplete) {
+                    t += " " + Math.round(state.fade.percentComplete) + "% complete";
+                }
+                $("#fading").text(t);
+            } else {
+                $("#fading").text("");
             }
         }
     }
@@ -383,6 +402,7 @@ $(function() {
 </fieldset>
 
 <fieldset><legend>Blink</legend>
+<span id="blinking"></span>
 <h2>From Color</h2>
 <div id="blinkCP1"></div>
 <h2>To Color</h2>
@@ -393,6 +413,7 @@ $(function() {
 </fieldset>
 
 <fieldset><legend>Fade</legend>
+<span id="fading"></span>
 <h2>From Color</h2>
 <div id="fadeCP1"></div>
 <h2>To Color</h2>

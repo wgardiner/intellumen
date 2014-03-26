@@ -50,16 +50,16 @@ def handle_command(cmd):
         data = cmd['color']
     elif cmd['command'] == 'startblink':
         stateName = 'blink'
-        data = {'blinking': True, 'color1': cmd['color1'], 'color2': cmd['color2'], 'ms': int(cmd['ms']), 'numBlinks': cmd['numBlinks']}
+        data = {'reset': True, 'blinking': True, 'color1': cmd['color1'], 'color2': cmd['color2'], 'ms': int(cmd['ms']), 'numBlinks': cmd['numBlinks']}
     elif cmd['command'] == 'stopblink':
         stateName = 'blink'
-        data = {'blinking': False}
+        data = {'reset': True, 'blinking': False}
     elif cmd['command'] == 'startfade':
         stateName = 'fade'
-        data = {'fading': True, 'color1': cmd['color1'], 'color2': cmd['color2'], 'time': int(cmd['time'])}
+        data = {'reset': True, 'fading': True, 'color1': cmd['color1'], 'color2': cmd['color2'], 'time': int(cmd['time'])}
     elif cmd['command'] == 'stopfade':
         stateName = 'fade'
-        data = {'fading': False}
+        data = {'reset': True, 'fading': False}
     elif cmd['command'] == 'getcolor':
         emit = {'command': 'refreshcolor'}
 
