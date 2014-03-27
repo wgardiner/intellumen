@@ -127,6 +127,8 @@ class LampThread(threading.Thread):
         change_state(red, 'blink', {})
         change_state(red, 'fade', {})
         while True:
+            time.sleep(0.010)
+
             if hasattr(self, '_shutdown') and self._shutdown: return
 
             try:
