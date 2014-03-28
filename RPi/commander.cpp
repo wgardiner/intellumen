@@ -44,6 +44,7 @@ void setup(void)
 
   radio.setPayloadSize(PAYLOAD);
   // TODO: set other crap (data rate, spi rate, etc)
+  radio.setDataRate(RF24_2MBPS);
   radio.setChannel(0x4c);
   radio.setPALevel(RF24_PA_MAX);
 
@@ -66,26 +67,32 @@ void setup(void)
   //
 
   //radio.printDetails();
+  std::cerr << "OK Listening for commands" << std::endl;
 }
 
 void loop(void)
 {
   // Read the current command from the user
   std::string command;
-  std::cin.ignore();
   std::getline(std::cin, command);
 
+  std::cerr << "Got '" << command << "'.\n";
+
   // Split the command on spaces
-  std::stringstream ss(command);
+  std::stringstream ss("0 ");
+  ss << command;
+  ss << " 0";
   unsigned char bytes[PAYLOAD];
-  int buf;
+  int buf = 0;
 
   // Read each space-separated value into an integer and put it into bytes
-  int used;
-  for (int i = 0; ss >> buf && i < PAYLOAD; i++) {
+  int used = 0;
+  for (int i = 0; i < PAYLOAD && ss >> buf; i++) {
     bytes[i] = (unsigned char)buf;
     used = i;
   }
+
+  std::cerr << "Read " << used << " bytes from stdin." << std::endl;
 
   // Stop listening so we can talk.
   radio.stopListening();
@@ -127,7 +134,7 @@ void loop(void)
 
     // Print the bytes
     for (int i = 0; i < PAYLOAD; i++) {
-      std::cout << bytes[i] << " ";
+      std::cout << (unsigned int)bytes[i] << " ";
     }
     std::cout << std::endl;
   }
