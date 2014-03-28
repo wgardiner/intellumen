@@ -23,12 +23,12 @@ STATE_VARS = ['ledColor', 'blink', 'fade']
 def get_config():
     return {
         'colors': [
-            {"name": "Red", "slug": "red", "value": 0, "hex": "ff5600"},
-            {"name": "Green", "slug": "green", "value": 0, "hex": "2fff00"},
-            {"name": "Blue", "slug": "blue", "value": 0, "hex": "0066ff"},
-            {"name": "Amber", "slug": "amber", "value": 0, "hex": "ffd700"},
-            {"name": "Cool White", "slug": "coolWhite", "value": 0, "hex": "fff9fd"},
-            {"name": "Warm White", "slug": "warmWhite", "value": 0, "hex": "ffc58f"}
+            {"name": "Red", "slug": "red", "value": 0, "hex": "ff5600", "weight": 1},
+            {"name": "Green", "slug": "green", "value": 0, "hex": "2fff00", "weight": 1},
+            {"name": "Blue", "slug": "blue", "value": 0, "hex": "0066ff", "weight": 1},
+            {"name": "Amber", "slug": "amber", "value": 0, "hex": "ffd700", "weight": 1},
+            {"name": "Cool White", "slug": "coolWhite", "value": 0, "hex": "fff9fd", "weight": 0},
+            {"name": "Warm White", "slug": "warmWhite", "value": 0, "hex": "ffc58f", "weight": 0}
         ]
     }
 

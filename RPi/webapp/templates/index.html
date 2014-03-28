@@ -7,7 +7,7 @@
 <script src="//code.jquery.com/jquery-1.9.1.js"></script>
 <script src="//code.jquery.com/ui/1.10.4/jquery-ui.js"></script>
 <!--<link rel="stylesheet" href="/resources/demos/style.css">-->
-<style>
+<style type="text/css">
     .slider {
         margin: 5px;
         margin-left: 15px;
@@ -19,8 +19,41 @@
     .input {
         width: 3em;
     }
+
+    table.colorTable {
+        display: inline-block;
+        vertical-align: middle;
+    }
+
+    div.colorSplotch {
+        display: inline-block;
+        vertical-align: middle;
+        margin-left: 30px;
+        padding: 30px;
+        width: 60px;
+        height: 60px;
+    }
+
+    .master {
+    }
 </style>
-<script>
+<script type="text/javascript">
+function hexToRgb(hex) {
+    // Convert hex color string (no #) to RGB list
+    if (hex.length != 6) {
+        alert("Error: hex string is invalid. " + hex);
+    }
+    return [parseInt(hex.slice(0,2), 16), parseInt(hex.slice(2,4), 16), parseInt(hex.slice(4,6), 16)];
+}
+
+function dec2hex(i) {
+    return (i+0x100).toString(16).substr(-2).toUpperCase();
+}
+
+function rgbToHex(rgb) {
+    // Convert 3-elm array to 6-char hex string
+    return dec2hex(rgb[0]) + dec2hex(rgb[1]) + dec2hex(rgb[2]);
+}
 
 function clone(obj) {
     // Handle the 3 simple types, and null or undefined
@@ -62,10 +95,42 @@ $.widget( "custom.colorpicker", {
 		self._elms = {};
     	$.each(self.options.colors, function (idx, color) {
     		self._colors[color.slug] = clone(color);
-    	});
+    	})
+        
+        var master = $("<div/>");
+        master.addClass("master");
 
     	var table = $("<table/>");
-    	self.element.append(table);
+        table.addClass("colorTable");
+    	master.append(table);
+
+        var splotch = $("<div/>");
+        splotch.addClass("colorSplotch");
+        master.append(splotch);
+
+        self.element.append(master);
+
+        var recalculateSplotch = function() { 
+            var rgb = [0,0,0];
+            var weightSum = 0;
+            $.each(self._colors, function (_, color) {
+                weightSum += color.weight;
+                $.each( hexToRgb(color.hex), function (idx, rgbVal) {
+                    rgb[idx] = rgb[idx] + rgbVal * color.value * color.weight;
+                });
+            });
+
+            var ratio = Math.max.apply(Math, rgb) / 255;
+            rgb = $.map(rgb, function(val) { 
+                return ratio != 0 ? Math.round(val / ratio) : 0; 
+            });
+
+            var newColor = "#" + rgbToHex(rgb);
+            splotch.css('background', newColor);
+        };
+
+        recalculateSplotch();
+
     	$.each(self._colors, function (idx, color) {
     		// Build the DOM (tr with 3 td, [label, slider, input])
     		var tr = $("<tr/>");
@@ -106,6 +171,9 @@ $.widget( "custom.colorpicker", {
 	        	var oldVal = self._colors[color.slug].value;
 	        	self._colors[color.slug].value = val;
 	        	input.val(val);
+    
+                recalculateSplotch();
+
 	        	if(self.options.callback && val != oldVal) {
 	        		self.options.callback(self.colors(), self._colors);
 	        	}
@@ -122,7 +190,10 @@ $.widget( "custom.colorpicker", {
 	        	var oldVal = self._colors[color.slug].value;
 	        	self._colors[color.slug].value = val;
 	        	slider.slider("value", val);
-	        	//slider.slider("refresh");
+
+                recalculateSplotch();
+	        	
+                //slider.slider("refresh");
 	        	if(self.options.callback && val != oldVal) {
 	        		self.options.callback(self.colors(), self._colors);
 	        	}
