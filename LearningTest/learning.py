@@ -14,7 +14,7 @@ logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
 THRESHOLD = 210
-MIN_LEN = 2
+MIN_LEN = 3
 
 def average(l):
     return sum(l) / len(l) if len(l) > 0 else None
@@ -100,12 +100,12 @@ if __name__ == '__main__':
 
     for eg in eventGroups.values():
         K_MIN = 1
-        K_MAX = len(eg) / 2
+        K_MAX = len(eg) / 3
 
         clusterSets = []
 
         for k in range(K_MIN, K_MAX):
-            centroids, labels = scipy.cluster.vq.kmeans2(numpy.array([e.pos() for e in eg]), k)
+            centroids, labels = scipy.cluster.vq.kmeans2(numpy.array([e.pos() for e in eg]), k, iter=200, minit='random')
 
             clusters = {}
             for eventIdx, centerIdx in enumerate(labels):
