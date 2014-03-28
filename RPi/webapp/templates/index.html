@@ -6,6 +6,7 @@
 <link rel="stylesheet" href="//code.jquery.com/ui/1.10.4/themes/smoothness/jquery-ui.css">
 <script src="//code.jquery.com/jquery-1.9.1.js"></script>
 <script src="//code.jquery.com/ui/1.10.4/jquery-ui.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/jquery-throttle-debounce/1.1/jquery.ba-throttle-debounce.min.js"></script>
 <!--<link rel="stylesheet" href="/resources/demos/style.css">-->
 <style type="text/css">
     .slider {
@@ -91,6 +92,8 @@ $.widget( "custom.colorpicker", {
     _create: function() {
     	var self = this; // So we'll have self available even if this is redefined.
 
+        self.callback = $.throttle(200, self.options.callback);
+
 		self._colors = {};
 		self._elms = {};
     	$.each(self.options.colors, function (idx, color) {
@@ -174,8 +177,8 @@ $.widget( "custom.colorpicker", {
     
                 recalculateSplotch();
 
-	        	if(self.options.callback && val != oldVal) {
-	        		self.options.callback(self.colors(), self._colors);
+	        	if(self.callback && val != oldVal) {
+	        		self.callback(self.colors(), self._colors);
 	        	}
 
                 // mark as "just changed" for 100ms to avoid feedback loops
@@ -194,8 +197,8 @@ $.widget( "custom.colorpicker", {
                 recalculateSplotch();
 	        	
                 //slider.slider("refresh");
-	        	if(self.options.callback && val != oldVal) {
-	        		self.options.callback(self.colors(), self._colors);
+	        	if(self.callback && val != oldVal) {
+	        		self.callback(self.colors(), self._colors);
 	        	}
 
                 // mark as "just changed" for 100ms to avoid feedback loops

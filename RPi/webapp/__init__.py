@@ -16,8 +16,6 @@ def create_app(configfile=None):
     app.config['LOG_FILE_PATH'] = '/tmp/seniorproj.log'
     app.config['LOG_TO_EMAIL'] = False
 
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/test.db'
-
     return app
 
 app = create_app()
@@ -26,9 +24,8 @@ app = create_app()
 from .log import set_up_loggers
 set_up_loggers()
 
-from .db import *
 from .forms import *
 from . import view
 
-__all__ = ['app', 'db', 'forms']
+__all__ = ['app', 'forms']
 
