@@ -59,11 +59,11 @@ def handle_command(cmd):
         stateName = 'fade'
         data = {'reset': True, 'fading': False}
     elif cmd['command'] == 'getcolor':
-        emit = {'command': 'refreshcolor'}
+        emit = {'command': 'getcolor'}
 
     if stateName and data:
-        red.set(stateName, json.dumps(data))
         red.publish('stateChanges', json.dumps({stateName: data}))
+        red.set(stateName, json.dumps(data))
 
     if emit:
         red.publish('lampCommands', json.dumps(emit))

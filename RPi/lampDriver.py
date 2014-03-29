@@ -4,8 +4,16 @@ import threading
 import Queue
 import json
 import operator
+import subprocess
+
+import logging
+logging.basicConfig()
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
 
 scheduler_queue = Queue.PriorityQueue()
+
+COMMANDER = './commander'
 
 def change_state(redis, key, val, publish=True):
     redis.set(key, json.dumps(val))
@@ -39,23 +47,21 @@ def update_color_state(redis):
 def update_sensor_state(redis):
     pass #TODO: Write me, and probably make a lamp class
 
+currentColor = None
 def set_color(redis, color, fromUi=False):
+    global currentColor
+
     color = color.copy()
 
     # round the color to the nearest interger first
     for channel in color:
         color[channel] = int(round(color[channel]))
     
-    # Load the current color
-    try:
-        currentColor = json.loads(redis.get('ledColor'))
-    except:
-        currentColor = None
-        raise
-
     if color != currentColor:
-        # TODO: Set the color
-        print 'would set lamp color to:', color
+        redis.publish('lampCommands', json.dumps({'command':'setcolor', 'color':color}))
+        logger.debug('set lamp color to: %s', color)
+
+        currentColor = color
 
         if not fromUi:
             redis.publish('stateChanges', json.dumps({'ledColor': color}))
@@ -73,7 +79,7 @@ class RedisStateMonitorThread(threading.Thread):
                 time.sleep(1)
                 continue
 
-            print 'got state change', stch
+                logger.debug('got state change: %s', stch)
 
             if hasattr(self, '_shutdown') and self._shutdown: return
 
@@ -105,10 +111,27 @@ class RedisStateMonitorThread(threading.Thread):
                         scheduler_queue.put((now, {'command': 'fade', 'sch': now, 'stopAt': fade['color2'], 'currentAt': fade['color1'], 'startAt': fade['color1'], 'time': fade['time']}))
 
 class RedisLampCommandThread(threading.Thread):
+    def getProcess(self):
+        if not hasattr(self, 'subproc') or self.subproc.poll() is not None:
+            logger.debug("spawning subprocess")
+            self.subproc = subprocess.Popen([COMMANDER], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        return self.subproc
+
+    def sendMessage(self, packet):
+        ''' send packet using the commander process (spawn only 1 of these). return the response packet. '''
+        p = self.getProcess()
+        try:
+            p.stdin.write(' '.join([str(int(s)) for s in packet]) + '\n')
+            resp = p.stdout.readline()
+            resp = [int(r) for r in resp.split(' ')]
+            return resp
+        except: raise
+
     def run(self):
         red = Redis()
         pubsub = red.pubsub()
-        pubsub.subscribe('lampCommands')
+        pubsub.subscribe('lampCommands') 
+
         for message in pubsub.listen():
             try:
                 cmd = json.loads(message['data'])
@@ -116,9 +139,16 @@ class RedisLampCommandThread(threading.Thread):
                 time.sleep(1)
                 continue
 
-            print 'got command', cmd
+            logger.debug('Got lamp command: %s', cmd)
 
-            scheduler_queue.put((datetime.datetime.utcnow(), cmd))
+            # send the command
+            if cmd['command'] == 'setcolor':
+                c = cmd['color']
+                packet = [1, c['red'], c['green'], c['blue'], c['amber'], c['coolWhite'], c['warmWhite']]
+                self.sendMessage(packet)
+
+            # assume it succeeded
+            ###scheduler_queue.put((datetime.datetime.utcnow(), cmd))
 
 
 class LampThread(threading.Thread):
@@ -185,7 +215,7 @@ class LampThread(threading.Thread):
                     deltaC[channel] = float(fstop[channel] - fstart[channel]) / ftime
 
                 # determine scale factor for deltaC and deltaT so the biggest change in deltaC is ~= 1 unit
-                maxDeltaC = max(deltaC.iteritems(), key=lambda x: abs(x[1]))[1]
+                maxDeltaC = abs(max(deltaC.iteritems(), key=lambda x: abs(x[1]))[1])
                 
                 percentComplete = None
                 for channel in fstop:
@@ -199,12 +229,15 @@ class LampThread(threading.Thread):
                     
                     # Hard-cap min(deltaT) at 50ms
                     if deltaT * scaleFactor < 0.050:
+                        logger.debug("HARD LIMITING fade rate!")
                         scaleFactor *= 0.050 / (deltaT * scaleFactor)
 
                     # Apply scaling
                     deltaT *= scaleFactor
                     for channel in deltaC:
                         deltaC[channel] *= scaleFactor
+
+                    logger.debug("Rescheduling fade change in %.2f ms", deltaT * 1000)
 
                     # Find the new color
                     for channel in fcurrent:

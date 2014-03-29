@@ -91,8 +91,9 @@ function clone(obj) {
 $.widget( "custom.colorpicker", {
     _create: function() {
     	var self = this; // So we'll have self available even if this is redefined.
-
-        self.callback = $.throttle(200, self.options.callback);
+    
+        if(self.options.callback)
+            self.callback = $.throttle(200, self.options.callback);
 
 		self._colors = {};
 		self._elms = {};
