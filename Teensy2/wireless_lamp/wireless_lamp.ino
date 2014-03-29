@@ -59,11 +59,11 @@ const char* role_friendly_name[] = { "invalid", "Ping out", "Pong back"};
 // The role of the current running sketch
 role_e role;
 
-int gotPayload[32];
+unsigned char gotPayload[32];
 
 // LED stuff
 int ledPins[] = {9, 5, /*12*/4, 10, 15, 14};
-int ledVals[] = {0, 0, 0, 0, 0, 0};
+unsigned char ledVals[] = {0, 0, 0, 0, 0, 0};
 
 void setup(void)
 {
@@ -212,13 +212,12 @@ void loop(void)
     if ( radio.available() )
     {
       // Dump the payloads until we've gotten everything
-      unsigned long got_time;
       bool done = false;
       while (!done)
       {
         // Fetch the payload, and see if this was the last one.
         //done = radio.read( &got_time, sizeof(unsigned long) );
-        done = radio.read( &gotPayload, sizeof(gotPayload) );
+        done = radio.read( gotPayload, sizeof(gotPayload) );
 
         // Spew it
         //printf("Got payload %lu...",got_time);
@@ -237,7 +236,7 @@ void loop(void)
 
       // Send the final one back.
       //radio.write( &got_time, sizeof(unsigned long) );
-      radio.write( &gotPayload, sizeof(gotPayload) );
+      radio.write( gotPayload, sizeof(gotPayload) );
       printf("Sent response.\n\r");
 
       // Now, resume listening so we catch the next packets.
@@ -247,8 +246,8 @@ void loop(void)
   
   // set color based on gotPayload
   for (int i=0; i<sizeof(ledVals); i++){
-    if( ledVals[i] != gotPayload[(i+1)*2] ){
-      ledVals[i] = gotPayload[(i+1)*2];
+    if( ledVals[i] != gotPayload[i+1] ){
+      ledVals[i] = gotPayload[i+1];
       analogWrite(ledPins[i], ledVals[i]);
     }
   }
