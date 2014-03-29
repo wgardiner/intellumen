@@ -56,7 +56,7 @@ def set_color(redis, color, fromUi=False):
     # round the color to the nearest interger first
     for channel in color:
         color[channel] = int(round(color[channel]))
-    
+
     if color != currentColor:
         redis.publish('lampCommands', json.dumps({'command':'setcolor', 'color':color}))
         logger.debug('set lamp color to: %s', color)
@@ -79,7 +79,7 @@ class RedisStateMonitorThread(threading.Thread):
                 time.sleep(1)
                 continue
 
-                logger.debug('got state change: %s', stch)
+            logger.debug('got state change: %s', stch)
 
             if hasattr(self, '_shutdown') and self._shutdown: return
 
@@ -90,7 +90,7 @@ class RedisStateMonitorThread(threading.Thread):
 
             if 'blink' in stch:
                 blink = stch['blink']
-    
+
                 if blink.get('reset', None):
                     # remove existing blink commands
                     remove_commands('blink')
@@ -122,20 +122,23 @@ class RedisLampCommandThread(threading.Thread):
         p = self.getProcess()
         try:
             p.stdin.write(' '.join([str(int(s)) for s in packet]) + '\n')
-            resp = p.stdout.readline()
-            resp = [int(r) for r in resp.split(' ')]
-            return resp
+            #resp = p.stdout.readline().strip()
+            #if resp:
+            #    resp = [int(r) for r in resp.split(' ')]
+            #    return resp
+            #else: return None
         except: raise
 
     def run(self):
         red = Redis()
         pubsub = red.pubsub()
-        pubsub.subscribe('lampCommands') 
+        pubsub.subscribe('lampCommands')
 
         for message in pubsub.listen():
             try:
                 cmd = json.loads(message['data'])
             except TypeError:
+                logger.debug("DERP")
                 time.sleep(1)
                 continue
 
@@ -145,7 +148,9 @@ class RedisLampCommandThread(threading.Thread):
             if cmd['command'] == 'setcolor':
                 c = cmd['color']
                 packet = [1, c['red'], c['green'], c['blue'], c['amber'], c['coolWhite'], c['warmWhite']]
+                t = time.time()
                 self.sendMessage(packet)
+                logger.debug('took %.2f ms to send command', (time.time() - t) * 1000)
 
             # assume it succeeded
             ###scheduler_queue.put((datetime.datetime.utcnow(), cmd))
@@ -164,13 +169,15 @@ class LampThread(threading.Thread):
             try:
                 pri, cmd = scheduler_queue.get(False, 2)
             except Queue.Empty:
-                continue 
+                continue
 
             if pri > datetime.datetime.utcnow(): # it is not yet time
                 #print 'pri too low', pri, datetime.datetime.utcnow(), cmd
                 scheduler_queue.put((pri, cmd)) # put it back on the queue
-                time.sleep(10/1000.0) # sleep for 10ms
+                time.sleep(2/1000.0) # sleep for 2ms
                 continue
+
+            logger.debug("delta from sked: %.2f ms", (datetime.datetime.utcnow() - pri).total_seconds() * 1000)
 
             if cmd['command'] == 'setcolor':
                 set_color(red, cmd['color'], fromUi=True)
@@ -216,7 +223,7 @@ class LampThread(threading.Thread):
 
                 # determine scale factor for deltaC and deltaT so the biggest change in deltaC is ~= 1 unit
                 maxDeltaC = abs(max(deltaC.iteritems(), key=lambda x: abs(x[1]))[1])
-                
+
                 percentComplete = None
                 for channel in fstop:
                     try:
@@ -226,7 +233,7 @@ class LampThread(threading.Thread):
 
                 if maxDeltaC != 0:
                     scaleFactor = 1.0 / maxDeltaC
-                    
+
                     # Hard-cap min(deltaT) at 50ms
                     if deltaT * scaleFactor < 0.050:
                         logger.debug("HARD LIMITING fade rate!")
@@ -244,7 +251,7 @@ class LampThread(threading.Thread):
                         fcurrent[channel] += deltaC[channel]
 
                     ### KLUDGE.... if we're blinking, don't change color in the fade
-                    
+
                     blinkState = json.loads(red.get('blink'))
                     if not blinkState or not blinkState.get('blinking', None):
                         # Set the color
@@ -262,7 +269,7 @@ class LampThread(threading.Thread):
                         change_state_var(red, 'fade', 'percentComplete', percentComplete)
 
                         scheduler_queue.put((
-                            datetime.datetime.utcnow() + datetime.timedelta(0, deltaT), 
+                            datetime.datetime.utcnow() + datetime.timedelta(0, deltaT),
                             {'command': 'fade', 'stopAt': fstop, 'currentAt': fcurrent, 'startAt': fstart, 'time': ftime, 'sch': cmd['sch']}
                         ))
 
@@ -283,7 +290,7 @@ class LampThread(threading.Thread):
                     red.set('fade', json.dumps({'fading': False}))
 
 
-                
+
 threads = [LampThread(), RedisStateMonitorThread(), RedisLampCommandThread()]
 
 for t in threads:
