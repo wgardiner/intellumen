@@ -59,8 +59,11 @@ const char* role_friendly_name[] = { "invalid", "Ping out", "Pong back"};
 // The role of the current running sketch
 role_e role;
 
+int gotPayload[32];
+
 // LED stuff
 int ledPins[] = {9, 5, /*12*/4, 10, 15, 14};
+int ledVals[] = {0, 0, 0, 0, 0, 0};
 
 void setup(void)
 {
@@ -135,14 +138,15 @@ void setup(void)
 
   radio.printDetails();
   
-    // LED stuff
+  // LED stuff
   for (int i=0; i < sizeof(ledPins); i++){
     pinMode(ledPins[i], OUTPUT);
+    analogWrite(ledPins[i], ledVals[i]);
   }
-  delay(5);
-  for (int i=0; i < sizeof(ledPins); i++){
-    analogWrite(ledPins[i], 1);
-  }
+//  delay(5);
+//  for (int i=0; i < sizeof(ledPins); i++){
+//    analogWrite(ledPins[i], 0);
+//  }
 }
 
 void loop(void)
@@ -151,6 +155,7 @@ void loop(void)
   // Ping out role.  Repeatedly send the current time
   //
 
+  /*
   if (role == role_ping_out)
   {
     // First, stop listening so we can talk.
@@ -193,6 +198,7 @@ void loop(void)
 
     // Try again 1s later
     delay(1000);
+    
   }
 
   //
@@ -201,6 +207,7 @@ void loop(void)
 
   if ( role == role_pong_back )
   {
+    */
     // if there is data ready
     if ( radio.available() )
     {
@@ -210,26 +217,41 @@ void loop(void)
       while (!done)
       {
         // Fetch the payload, and see if this was the last one.
-        done = radio.read( &got_time, sizeof(unsigned long) );
+        //done = radio.read( &got_time, sizeof(unsigned long) );
+        done = radio.read( &gotPayload, sizeof(gotPayload) );
 
         // Spew it
-        printf("Got payload %lu...",got_time);
+        //printf("Got payload %lu...",got_time);
+        printf("Got payload");
+        for(int j=0; j<sizeof(gotPayload); j++){
+          printf("%d,",gotPayload[j]);
+        }
 
-	// Delay just a little bit to let the other unit
-	// make the transition to receiver
-	delay(20);
+  // Delay just a little bit to let the other unit
+  // make the transition to receiver
+  delay(20);
       }
 
       // First, stop listening so we can talk
       radio.stopListening();
 
       // Send the final one back.
-      radio.write( &got_time, sizeof(unsigned long) );
+      //radio.write( &got_time, sizeof(unsigned long) );
+      radio.write( &gotPayload, sizeof(gotPayload) );
       printf("Sent response.\n\r");
 
       // Now, resume listening so we catch the next packets.
       radio.startListening();
     }
+  //} // end if role == role_pong_back
+  
+  // set color based on gotPayload
+  for (int i=0; i<sizeof(ledVals); i++){
+    if( ledVals[i] != gotPayload[(i+1)*2] ){
+      ledVals[i] = gotPayload[(i+1)*2];
+      analogWrite(ledPins[i], ledVals[i]);
+    }
   }
-}
+  
+} 
 // vim:cin:ai:sts=2 sw=2 ft=cpp
