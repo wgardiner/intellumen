@@ -41,7 +41,7 @@ def get_state():
 def handle_command(cmd):
     stateName = None
     data = None
-    emit = None
+#    emit = None
 
     if cmd['command'] == 'setcolor':
         stateName = 'ledColor'
@@ -58,15 +58,15 @@ def handle_command(cmd):
     elif cmd['command'] == 'stopfade':
         stateName = 'fade'
         data = {'reset': True, 'fading': False}
-    elif cmd['command'] == 'getcolor':
-        emit = {'command': 'getcolor'}
+#    elif cmd['command'] == 'getcolor':
+#        emit = {'command': 'getcolor'}
 
     if stateName and data:
         red.publish('stateChanges', json.dumps({stateName: data}))
         red.set(stateName, json.dumps(data))
 
-    if emit:
-        red.publish('lampCommands', json.dumps(emit))
+ #   if emit:
+ #       red.publish('lampCommands', json.dumps(emit))
 
     return {}
 

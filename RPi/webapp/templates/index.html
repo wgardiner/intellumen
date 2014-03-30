@@ -347,7 +347,8 @@ $(function() {
         cpSet = $("#colorPickerSet").colorpicker({
             colors: CONFIG['colors'],
             callback: function(colors) {
-                sendCommand({command: 'setcolor', color: colors});
+                if ((!STATE.blink || !STATE.blink.blinking) && (!STATE.fade || !STATE.fade.fading))
+                    sendCommand({command: 'setcolor', color: colors});
             }
         });
 
