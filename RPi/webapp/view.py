@@ -39,41 +39,7 @@ def get_state():
     return state
 
 def handle_command(cmd):
-    stateName = None
-    data = None
-#    emit = None
-
-    if cmd['command'] == 'setcolor':
-        stateName = 'ledColor'
-        data = cmd['color']
-    elif cmd['command'] == 'addevent':
-        stateName = 'addevent'
-        data = {'at': int(cmd['at']), 'inner': cmd['inner'], 'id': uuid.uuid4().hex}
-    elif cmd['command'] == 'delevent':
-        stateName = 'delevent'
-        data = {'id': cmd['id']}
-    elif cmd['command'] == 'startblink':
-        stateName = 'blink'
-        data = {'reset': True, 'blinking': True, 'color1': cmd['color1'], 'color2': cmd['color2'], 'ms': int(cmd['ms']), 'numBlinks': cmd['numBlinks']}
-    elif cmd['command'] == 'stopblink':
-        stateName = 'blink'
-        data = {'reset': True, 'blinking': False}
-    elif cmd['command'] == 'startfade':
-        stateName = 'fade'
-        data = {'reset': True, 'fading': True, 'color1': cmd['color1'], 'color2': cmd['color2'], 'time': int(cmd['time'])}
-    elif cmd['command'] == 'stopfade':
-        stateName = 'fade'
-        data = {'reset': True, 'fading': False}
-#    elif cmd['command'] == 'getcolor':
-#        emit = {'command': 'getcolor'}
-
-    if stateName and data:
-        red.publish('stateChanges', json.dumps({stateName: data}))
-        red.set(stateName, json.dumps(data))
-
- #   if emit:
- #       red.publish('lampCommands', json.dumps(emit))
-
+    red.publish('commands', json.dumps(cmd))
     return {}
 
 class DisplayEvent(object):
@@ -92,7 +58,7 @@ class DisplayEvent(object):
 
     @property
     def at(self):
-        return datetime.datetime.fromtimestamp(int(self.event['at']))
+        return datetime.datetime.utcfromtimestamp(int(self.event['at']))
 
     @property
     def commandStr(self):
@@ -100,7 +66,7 @@ class DisplayEvent(object):
 
     @property
     def atStr(self):
-        return self.at.strftime("%Y-%m-%d %H:%M:%S")
+        return datetime.datetime.fromtimestamp(int(self.event['at'])).strftime("%Y-%m-%d %H:%M:%S") # localtime on purpose
 
     @property
     def id(self):

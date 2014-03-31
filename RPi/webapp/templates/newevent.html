@@ -1,45 +1,213 @@
 {% extends "layout.html" %}
 
 {% block title2 %} New Event {% endblock %}
+{% block styles %}
+{{super()}}
+<link rel="stylesheet" href="{{url_for('static', filename='colorpicker.css')}}" />
+{% endblock %}
 {% block scripts %}
 {{super()}}
+<script src="{{url_for('static', filename='util.js')}}"></script>
+<script src="{{url_for('static', filename='colorpicker.js')}}"></script>
 <script type="text/javascript">
-function sendCommand(command) {
+$(function() {
+	var CONFIG, STATE;
+    var cpSet, cpBlink1, cpBlink2, cpFade1, cpFade2, selCmd;
+
+    function sendCommand(command) {
+        $.ajax({
+            url: '/json/command',
+            type: 'post',
+            data: JSON.stringify(command),
+            contentType: 'application/json; charset=UTF-8', // This is the money shot
+            dataType: 'json',
+            error: function() {
+                console.log("Error in sending command");
+            }
+        });
+    }
+
+    function buildCommand(c) {
+        if (c == "startblink") {
+            var time = $("#blinkTime").val();
+            var col1 = cpBlink1.colorpicker('colors');
+            var col2 = cpBlink2.colorpicker('colors');
+
+            var ms = parseInt($('input#blinkTime').val());
+            if (isNaN(ms) || ms < 100 || ms > 60000) {
+                alert("Blink time must be between 100ms and 60 000ms.");
+                return;
+            }
+
+            var numBlinks = parseInt($('input#numBlinks').val());
+            if (isNaN(numBlinks) || numBlinks == 0) {
+                numBlinks = null;
+            } else if (numBlinks < 1) {
+                alert("Number of blinks must be a positive number (or zero/blank for infinite).");
+                return;
+            }
+
+            return {command: 'startblink', color1: col1, color2: col2, ms: ms, numBlinks: numBlinks};
+        } else if (c == "stopblink") { 
+            return {command: 'stopblink'};
+        }
+        else if (c == "startfade") {
+            var time = $("#fadeTime").val();
+            var col1 = cpFade1.colorpicker('colors');
+            var col2 = cpFade2.colorpicker('colors');
+
+            var time = parseInt($('input#fadeTime').val());
+            if (isNaN(time) || time < 5 || time > 172800) {
+                alert("Fade time must be between 5 seconds and 172800 seconds.");
+                return;
+            }
+
+            return {command: 'startfade', color1: col1, color2: col2, time: time};
+        } else if (c == "stopfade") { 
+            return {command: 'stopfade'};
+        }
+        else if (c == "setcolor") {
+            return {command: 'setcolor', color: cpSet.colorpicker('colors')};
+        }
+    }
+
+    function getDate() {
+        var date = null;
+        var v = $("#datetime").val();
+        if (v.length > 0) {
+            date = Date.parse(v);
+            if (date) {
+                $("#datetimePreview").text(date.toString("dddd, MMMM dd, yyyy h:mm:ss tt"));
+            } else {
+                $("#datetimePreview").text("Error: invalid date/time");
+            }
+        } else {
+            $("#datetimePreview").text("Type a date/time...");
+        }
+        return date;
+    }
+
+    function buildIfReady() {
+        if (!CONFIG)
+            return;
+
+        cpSet = $("#colorPickerSet").colorpicker({
+            colors: CONFIG['colors']
+        });
+
+        cpBlink1 = $("#blinkCP1").colorpicker({
+            colors: CONFIG['colors']
+        });
+
+        cpBlink2 = $("#blinkCP2").colorpicker({
+            colors: CONFIG['colors']
+        });
+
+        cpFade1 = $("#fadeCP1").colorpicker({
+            colors: CONFIG['colors']
+        });
+
+        cpFade2 = $("#fadeCP2").colorpicker({
+            colors: CONFIG['colors']
+        });
+
+        // Wire up the datetime preview
+        $("#datetime").keyup(function() {
+            getDate();
+        });
+
+        window.setInterval(getDate, 1000);
+
+        // Wire up the select change
+        $("#cmdtype").change(function() {
+            selCmd = $(this).val();
+            $("fieldset.control").hide();
+            if (selCmd == "setcolor") {
+                $("fieldset#fsSet").show();
+            }
+            else if (selCmd == "startblink") {
+                $("fieldset#fsBlink").show();
+            }
+            else if (selCmd == "startfade") {
+                $("fieldset#fsFade").show();
+            }
+        });
+
+        // Wire up the "schedule event" button
+        $("button#schedule").click(function() {
+            var date = getDate();
+            if (!date) {
+                alert("Invalid date.");
+                return;
+            }
+            
+            var inner = buildCommand(selCmd);
+
+            var cmd = {command: "addevent", at: date.getTime() / 1000, inner: inner};
+
+            console.log(cmd);
+            sendCommand(cmd);
+
+            $("#jsflash").text("Event scheduled successfully.");
+        });
+
+        $("fieldset.control").hide();
+        $("fieldset#fsSet").show();
+        $("#cmdtype").val("setcolor");
+        getDate();
+    }
+
+    // Load the UI config
     $.ajax({
-        url: '/json/command',
-        type: 'post',
-        data: JSON.stringify(command),
-        contentType: 'application/json; charset=UTF-8', // This is the money shot
+        url: '/json/config',
+        type: 'get',
         dataType: 'json',
+        success: function(data) {
+            CONFIG = data;
+            buildIfReady();
+        },
         error: function() {
-            console.log("Error in sending command");
+            console.log("Unable to load configuration data.");
         }
     });
-}
-function deleteEvent(id) {
-    sendCommand({command: 'delevent', id: id});
-    
-    // assume success - remove row, decrease count, and flash user
-    $("tr#"+id).remove();
-    var newCount = parseInt($("#count").html()) - 1;
-    $("#count").html(newCount);
-    if (newCount == 0) {
-        $("table#events").remove();
-    }
-    $("#jsflash").html("Event deleted successfully.");
-}
+});
 </script>
 {% endblock %}
 {% block body2 %}
-<div id="jsflash">((STYLING NOTE: flashed messages will go here.))</div>
-<p>There are <span id="count">{{events|count}}</span> event(s) scheduled.</p>
-{% if events %}
-<table id="events">
-    <tr><th>At</th><th>Command</th><th>Details</th></tr>
-    {% for event in events %}
-    <tr id={{event.id|tojson}} class="{{'past' if event.inPast else ''}}"><td>{{event.atStr}}</td><td>{{event.commandStr}}</td><td>{{event.detailsStr}}</td><td><a onclick='void(deleteEvent({{event.id|tojson}})); return false;' href="#">Delete</a></tr>
-    {% endfor %}
-</table>
-<br/>
-{% endif %}
+
+<label>Enter a date/time: <input type="text" id="datetime" /></label><br/>
+<span id="datetimePreview">Unknown / Empty Date</span><br/>
+<label>Select an event type: 
+<select id="cmdtype">
+    <option value="setcolor">Set Color</option>
+    <option value="startblink">Start Blink</option>
+    <option value="stopblink">Stop Blink</option>
+    <option value="startfade">Start Fade</option>
+    <option value="stopfade">Stop Fade</option>
+</select></label><br/>
+
+<fieldset class="control" id="fsSet"><legend>Direct Color Change</legend>
+<div id="colorPickerSet"></div>
+</fieldset>
+
+<fieldset class="control" id="fsBlink"><legend>Blink</legend>
+<span id="blinking"></span>
+<h2>First Color</h2>
+<div id="blinkCP1"></div>
+<h2>Second Color</h2>
+<div id="blinkCP2"></div>
+<label>Time (ms): <input min="100" max="60000" type="text" id="blinkTime" /></label><br/>
+<label>Number of Blinks: <input min="0" type="text" id="numBlinks" /></label><br/>
+</fieldset>
+
+<fieldset class="control" id="fsFade"><legend>Fade</legend>
+<span id="fading"></span>
+<h2>From Color</h2>
+<div id="fadeCP1"></div>
+<h2>To Color</h2>
+<div id="fadeCP2"></div>
+<label>Time (seconds): <input min="5" max="172800" type="text" id="fadeTime" /></label><br/>
+</fieldset>
+
+<button id="schedule">Schedule Event</button>
 {% endblock %}

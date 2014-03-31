@@ -8,6 +8,7 @@
 <script src="{{url_for('static', filename='ext/jquery.js')}}"></script>
 <script src="{{url_for('static', filename='ext/jquery-ui.js')}}"></script>
 <script src="{{url_for('static', filename='ext/jquery-throttle-debounce.js')}}"></script>
+<script src="{{url_for('static', filename='ext/date.js')}}"></script>
 {%endblock %}
 
 {% block styles %}
@@ -48,11 +49,13 @@
 
 {% for message in get_flashed_messages() %}
     {% if message.startswith('::SAFE::') %}
-        <div id="flash" class="flash">{{ message[8:]|safe }}</div>
+        <div class="flash">{{ message[8:]|safe }}</div>
     {% else %}
-        <div id="flash" class="flash">{{ message }}</div>
+        <div class="flash">{{ message }}</div>
     {% endif %}
 {% endfor %}
+
+<div class="flash" id="jsflash">((STYLING NOTE: flashed messages will go here.))</div>
 
 <h1>{{ self.title2() }}</h1>
 {% block body2 %}

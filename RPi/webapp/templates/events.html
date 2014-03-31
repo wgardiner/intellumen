@@ -49,7 +49,6 @@ function deleteEvent(id) {
 </script>
 {% endblock %}
 {% block body2 %}
-<div id="jsflash">((STYLING NOTE: flashed messages will go here.))</div>
 <p>There are <span id="count">{{events|count}}</span> event(s) scheduled.</p>
 {% if events %}
 <table id="events">
@@ -60,4 +59,5 @@ function deleteEvent(id) {
 </table>
 <br/>
 {% endif %}
+<a href="{{url_for('newevent')}}">New Event</a>
 {% endblock %}
