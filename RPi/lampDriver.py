@@ -17,9 +17,9 @@ def lap(a):
 
 
 import logging
-logging.basicConfig()
+#logging.basicConfig()
 logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
+#logger.setLevel(logging.DEBUG)
 
 scheduler_queue = Queue.PriorityQueue()
 redis_queue = Queue.Queue()
@@ -159,7 +159,7 @@ class RedisStateMonitorThread(threading.Thread):
 
             now = datetime.datetime.utcnow()
 
-            if 'ledColor' in stch:
+            if 'ledColor' in stch and stch['ledColor']:
                 if stch['ledColor'].get('_reset', True):
                     scheduler_queue.put((now, {'command': 'setcolor', 'sch': now, 'color': stch['ledColor']}))
 
@@ -250,6 +250,8 @@ class SchedulerThread(threading.Thread):
     def run(self):
         change_state('blink', {})
         change_state('fade', {})
+        change_state('ledColor', {})
+        redis_queue.put(('set', 'events', []))
         while True:
             if hasattr(self, '_shutdown') and self._shutdown: return
 

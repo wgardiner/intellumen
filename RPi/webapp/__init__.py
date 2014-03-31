@@ -9,6 +9,8 @@ def create_app(configfile=None):
     app = Flask(__name__)
     AppConfig(app, configfile)
 
+    app.config['BOOTSTRAP_USE_CDN'] = False
+
     Bootstrap(app)
 
     app.config['SECRET_KEY'] = 'BEPHZyS3SY9BrFWwgTHJ2xVFrQk44ggE4WAR3QPpNiIgIiCmJmmkEO15gepeEQBENHDfrIcfGmYuP2envn2QX6TLOYl0J06qLcme'

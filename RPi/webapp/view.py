@@ -81,6 +81,7 @@ def index():
 def events():
     levents = json.loads(red.get('events') or '[]')
     events = [DisplayEvent(e) for e in levents]
+    print repr([e.__dict__ for e in events])
     return render_template("events.html", events=events)
 
 @app.route('/events/new', methods=["GET"])
