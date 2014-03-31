@@ -1,3 +1,11 @@
+body,html,td input{
+    background-color: #444444;
+    border: none;
+}
+body,fieldset,fieldset legend,h1,h2,h3,th,td{
+    color: #cccccc;
+}
+td
 h1 {
     font-size: 2em;
     margin-top: 0;

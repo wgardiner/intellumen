@@ -8,14 +8,16 @@
 <script src="{{url_for('static', filename='ext/jquery.js')}}"></script>
 <script src="{{url_for('static', filename='ext/jquery-ui.js')}}"></script>
 <script src="{{url_for('static', filename='ext/jquery-throttle-debounce.js')}}"></script>
+<script src="{{url_for('static', filename='ext/jquery.ui.touch-punch.min.js')}}"></script>
 <script src="{{url_for('static', filename='ext/date.js')}}"></script>
 {%endblock %}
 
 {% block styles %}
 {{super()}}
 <meta charset="utf-8">
+<!--<link rel="stylesheet" href="{{url_for('static', filename='ext/jquery-ui.css')}}" />-->
+<link rel="stylesheet" href="{{url_for('static', filename='jquery-ui-jmetro.css')}}" />
 <link rel="stylesheet" href="{{url_for('static', filename='style.css')}}" />
-<link rel="stylesheet" href="{{url_for('static', filename='ext/jquery-ui.css')}}" />
 {% endblock %}
 
 {% block content %}
