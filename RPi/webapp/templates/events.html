@@ -1,0 +1,62 @@
+<!doctype html>
+<html>
+<head>
+<title>Event List</title>
+<style type="text/css">
+table
+{
+    border-collapse:collapse;
+}
+table, th, td
+{
+    border: 1px solid black;
+}
+th, td {
+    text-align: left;
+    padding-left: 2px;
+    padding-right: 2px;
+}
+</style>
+<script src="//code.jquery.com/jquery-1.9.1.js"></script>
+<script type="text/javascript">
+function sendCommand(command) {
+    $.ajax({
+        url: '/json/command',
+        type: 'post',
+        data: JSON.stringify(command),
+        contentType: 'application/json; charset=UTF-8', // This is the money shot
+        dataType: 'json',
+        error: function() {
+            console.log("Error in sending command");
+        }
+    });
+}
+function deleteEvent(id) {
+    //sendCommand({command: 'delevent', id: id});
+    
+    // assume success - remove row, decrease count, and flash user
+    $("tr#"+id).remove();
+    var newCount = parseInt($("#count").html()) - 1;
+    $("#count").html(newCount);
+    if (newCount == 0) {
+        $("table#events").remove();
+    }
+    $("#flash").html("Event deleted successfully.");
+}
+</script>
+</head>
+<body>
+<div id="flash">((STYLING NOTE: flashed messages will go here.))</div>
+<p>There are <span id="count">{{events|count}}</span> event(s) scheduled.</p>
+{% if events %}
+<table id="events">
+    <tr><th>At</th><th>Command</th><th>Details</th></tr>
+    {% for event in events %}
+    <tr id={{event.id|tojson}}><td>{{event.atStr}}</td><td>{{event.commandStr}}</td><td>{{event.detailsStr}}</td><td><a onclick='void(deleteEvent({{event.id|tojson}})); return false;' href="#">Delete</a></tr>
+    {% endfor %}
+</table>
+<br/>
+{% endif %}
+<a href="/">Home</a>
+</body>
+</html>

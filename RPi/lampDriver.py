@@ -16,9 +16,9 @@ def lap(a):
 
 
 import logging
-#logging.basicConfig()
+logging.basicConfig()
 logger = logging.getLogger()
-#logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.DEBUG)
 
 scheduler_queue = Queue.PriorityQueue()
 redis_queue = Queue.Queue()
@@ -36,14 +36,14 @@ def change_state(key, val, publish=True):
 def change_state_var(state, key, val):
     redis_queue.put(('change_state_var', state, key, val))
 
-def remove_commands(command):
+def remove_commands(command, filt=None):
     cmds = []
     while True:
         try:
             pri, lampCmd = scheduler_queue.get(False)
         except Queue.Empty:
             break
-        if lampCmd['command'] != command:
+        if lampCmd['command'] != command and (filt is None or filt(lampCmd)):
             cmds.append((pri, lampCmd))
 
     # Put all the non-blink commands back onto the queue
@@ -88,6 +88,35 @@ class RedisStateMonitorThread(threading.Thread):
             if hasattr(self, '_shutdown') and self._shutdown: return
 
             now = datetime.datetime.utcnow()
+
+            # ABUSING 'state' here as a command protocol
+            if 'addevent' in stch:
+                aevent = stch['addevent']
+                
+                # Update redis event list to match this
+                redevents = json.loads(red.get('events') or '[]')
+                redevents.append(aevent)
+                red.set('events', json.dumps(redevents))
+
+                aeat = datetime.datetime.fromtimestamp(aevent['at'])
+                scheduler_queue.put((aeat, {'command': 'event', 'sch': now, 'at': aeat, 'inner': aevent['inner'], 'id': aevent['id']}))
+
+            # ABUSING 'state' here as a command protocol
+            if 'delevent' in stch:
+                devent = stch['delevent']
+
+                filt = None
+                if devent['id'] is not None:
+                    filt = lambda x: x['id'] == devent['id']
+
+                # Update redis event list to match this
+                redevents = json.loads(red.get('events') or '[]')
+                for event in redevents:
+                    if devent['id'] is None or event['id'] == devent['id']:
+                        redevents.remove(event)
+                red.set('events', json.dumps(redevents))
+                
+                remove_commands('event', filt=filt)
 
             if 'ledColor' in stch:
                 if stch['ledColor'].get('_reset', True):
@@ -201,6 +230,9 @@ class SchedulerThread(threading.Thread):
             if cmd['command'] == 'setcolor':
                 set_color(cmd['color'], fromUi=True)
 
+            elif cmd['command'] == 'event':
+                scheduler_queue.put((cmd['at'], cmd['inner']))
+
             #elif cmd['command'] == 'refreshcolor':
             #    update_color_state(red)
 
@@ -310,9 +342,8 @@ class SchedulerThread(threading.Thread):
                     change_state('fade', {'fading': False})
 
 
-import yappi
-
-yappi.start()
+#import yappi
+#yappi.start()
 threads = [SchedulerThread(), RedisStateMonitorThread(), LampCommandThread(), RedisTalkThread()]
 
 for t in threads:
@@ -323,7 +354,7 @@ try:
         while t.is_alive():
             t.join(1)
 except:
-    yappi.get_func_stats().print_all()
+    #yappi.get_func_stats().print_all()
     for t in threads:
         t._shutdown = True
     raise

@@ -258,16 +258,18 @@ $(function() {
 
     function sendCommand(command) {
         $.ajax({
-                url: '/json/command',
-                type: 'post',
-                data: JSON.stringify(command),
-                contentType: 'application/json; charset=UTF-8', // This is the money shot
-                dataType: 'json',
-                error: function() {
-                    console.log("Error in sending command");
-                }
-            });
+            url: '/json/command',
+            type: 'post',
+            data: JSON.stringify(command),
+            contentType: 'application/json; charset=UTF-8', // This is the money shot
+            dataType: 'json',
+            error: function() {
+                console.log("Error in sending command");
+            }
+        });
     }
+
+    window._sendCommand = sendCommand;
 
     function updateState(state) {
         for (var key in state) {
@@ -473,15 +475,17 @@ $(function() {
 </script>
 </head>
 
+<body>
+
 <fieldset><legend>Direct Color Change</legend>
 <div id="colorPickerSet"></div>
 </fieldset>
 
 <fieldset><legend>Blink</legend>
 <span id="blinking"></span>
-<h2>From Color</h2>
+<h2>First Color</h2>
 <div id="blinkCP1"></div>
-<h2>To Color</h2>
+<h2>Second Color</h2>
 <div id="blinkCP2"></div>
 <label>Time (ms): <input min="100" max="60000" type="text" id="blinkTime" /></label><br/>
 <label>Number of Blinks: <input min="0" type="text" id="numBlinks" /></label><br/>
@@ -497,5 +501,6 @@ $(function() {
 <label>Time (seconds): <input min="5" max="172800" type="text" id="fadeTime" /></label><br/>
 <button id="fadeBtn"></button>
 </fieldset>
+
 </body>
 </html>
