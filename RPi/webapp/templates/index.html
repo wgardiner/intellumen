@@ -3,36 +3,7 @@
 {% block title2 %} Home {% endblock %}
 {% block styles %}
 {{super()}}
-<style type="text/css">
-    .slider {
-        margin: 5px;
-        margin-left: 15px;
-        margin-right: 15px;
-        float: left;
-        clear: left;
-        width: 300px;
-    }
-    .input {
-        width: 3em;
-    }
-
-    table.colorTable {
-        display: inline-block;
-        vertical-align: middle;
-    }
-
-    div.colorSplotch {
-        display: inline-block;
-        vertical-align: middle;
-        margin-left: 30px;
-        padding: 30px;
-        width: 60px;
-        height: 60px;
-    }
-
-    .master {
-    }
-</style>
+<link rel="stylesheet" href="{{url_for('static', filename='colorpicker.css')}}" />
 {% endblock %}
 {% block scripts %}
 {{super()}}
