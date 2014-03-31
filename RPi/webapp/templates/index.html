@@ -1,13 +1,8 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>Intellumen</title>
-<link rel="stylesheet" href="//code.jquery.com/ui/1.10.4/themes/smoothness/jquery-ui.css">
-<script src="//code.jquery.com/jquery-1.9.1.js"></script>
-<script src="//code.jquery.com/ui/1.10.4/jquery-ui.js"></script>
-<script src="//cdnjs.cloudflare.com/ajax/libs/jquery-throttle-debounce/1.1/jquery.ba-throttle-debounce.min.js"></script>
-<!--<link rel="stylesheet" href="/resources/demos/style.css">-->
+{% extends "layout.html" %}
+
+{% block title2 %} Home {% endblock %}
+{% block styles %}
+{{super()}}
 <style type="text/css">
     .slider {
         margin: 5px;
@@ -38,220 +33,12 @@
     .master {
     }
 </style>
+{% endblock %}
+{% block scripts %}
+{{super()}}
+<script src="{{url_for('static', filename='util.js')}}"></script>
+<script src="{{url_for('static', filename='colorpicker.js')}}"></script>
 <script type="text/javascript">
-function hexToRgb(hex) {
-    // Convert hex color string (no #) to RGB list
-    if (hex.length != 6) {
-        alert("Error: hex string is invalid. " + hex);
-    }
-    return [parseInt(hex.slice(0,2), 16), parseInt(hex.slice(2,4), 16), parseInt(hex.slice(4,6), 16)];
-}
-
-function dec2hex(i) {
-    return (i+0x100).toString(16).substr(-2).toUpperCase();
-}
-
-function rgbToHex(rgb) {
-    // Convert 3-elm array to 6-char hex string
-    return dec2hex(rgb[0]) + dec2hex(rgb[1]) + dec2hex(rgb[2]);
-}
-
-function clone(obj) {
-    // Handle the 3 simple types, and null or undefined
-    if (null == obj || "object" != typeof obj) return obj;
-
-    // Handle Date
-    if (obj instanceof Date) {
-        var copy = new Date();
-        copy.setTime(obj.getTime());
-        return copy;
-    }
-
-    // Handle Array
-    if (obj instanceof Array) {
-        var copy = [];
-        for (var i = 0, len = obj.length; i < len; i++) {
-            copy[i] = clone(obj[i]);
-        }
-        return copy;
-    }
-
-    // Handle Object
-    if (obj instanceof Object) {
-        var copy = {};
-        for (var attr in obj) {
-            if (obj.hasOwnProperty(attr)) copy[attr] = clone(obj[attr]);
-        }
-        return copy;
-    }
-
-    throw new Error("Unable to copy obj! Its type isn't supported.");
-}
-
-$.widget( "custom.colorpicker", {
-    _create: function() {
-    	var self = this; // So we'll have self available even if this is redefined.
-    
-        if(self.options.callback)
-            self.callback = $.throttle(200, self.options.callback);
-
-		self._colors = {};
-		self._elms = {};
-    	$.each(self.options.colors, function (idx, color) {
-    		self._colors[color.slug] = clone(color);
-    	})
-        
-        var master = $("<div/>");
-        master.addClass("master");
-
-    	var table = $("<table/>");
-        table.addClass("colorTable");
-    	master.append(table);
-
-        var splotch = $("<div/>");
-        splotch.addClass("colorSplotch");
-        master.append(splotch);
-
-        self.element.append(master);
-
-        var recalculateSplotch = function() { 
-            var rgb = [0,0,0];
-            var weightSum = 0;
-            $.each(self._colors, function (_, color) {
-                weightSum += color.weight;
-                $.each( hexToRgb(color.hex), function (idx, rgbVal) {
-                    rgb[idx] = rgb[idx] + rgbVal * color.value * color.weight;
-                });
-            });
-
-            var ratio = Math.max.apply(Math, rgb) / 255;
-            rgb = $.map(rgb, function(val) { 
-                return ratio != 0 ? Math.round(val / ratio) : 0; 
-            });
-
-            var newColor = "#" + rgbToHex(rgb);
-            splotch.css('background', newColor);
-        };
-
-        recalculateSplotch();
-
-    	$.each(self._colors, function (idx, color) {
-    		// Build the DOM (tr with 3 td, [label, slider, input])
-    		var tr = $("<tr/>");
-
-    		var label = $("<label/>");
-    		label.text(color.name);
-	   		label.addClass("label");
-    		tr.append($("<td/>").append(label));
-
-    		var slider = $("<div/>");
-    		slider.addClass("slider");
-    		slider.slider({
-	            orientation: "horizontal",
-	            range: "min",
-	            max: 255,
-	            value: color.value
-	        });
-
-    		slider.children(".ui-slider-range, .ui-slider-handle").css("background", "#" + color.hex);
-
-	        tr.append($("<td/>").append(slider));
-
-	        var input = $("<input max='255' type='text'/>");
-	        input.addClass("input");
-	        input.val(color.value);
-	        tr.append($("<td/>").append(input));
-
-	        self._elms[color.slug] = {input: input, slider: slider};
-
-	        table.append(tr);
-
-            self._justChanged = false;
-
-	        // Create the slider onChange function
-	        var sliderChanged = function() {
-	        	// `this` is redefined as the slider here
-	        	var val = slider.slider("value");
-	        	var oldVal = self._colors[color.slug].value;
-	        	self._colors[color.slug].value = val;
-	        	input.val(val);
-    
-                recalculateSplotch();
-
-	        	if(self.callback && val != oldVal) {
-	        		self.callback(self.colors(), self._colors);
-	        	}
-
-                // mark as "just changed" for 100ms to avoid feedback loops
-                self._justChanged = true;
-                window.setTimeout(function() { self._justChanged = false; }, 100);
-	        };
-
-	        // Create the input onChange function
-	        var inputChanged = function() {
-	        	// `this` is redefined as the input here
-	        	var val = input.val();
-	        	var oldVal = self._colors[color.slug].value;
-	        	self._colors[color.slug].value = val;
-	        	slider.slider("value", val);
-
-                recalculateSplotch();
-	        	
-                //slider.slider("refresh");
-	        	if(self.callback && val != oldVal) {
-	        		self.callback(self.colors(), self._colors);
-	        	}
-
-                // mark as "just changed" for 100ms to avoid feedback loops
-                self._justChanged = true;
-                window.setTimeout(function() { self._justChanged = false; }, 100);
-	        };
-
-	        // Wire the slider to the input and vice versa
-	        slider.slider('option', 'slide', sliderChanged);
-	        slider.slider('option', 'change', sliderChanged);
-	        input.change(inputChanged);
-	        input.keyup(inputChanged);
-    	});
-
-		if (self.options.submit) {
-			self.element.append($("<button/>").text("Submit").click(function() {
-				self.options.submit(self.colors(), self._colors);
-			}));
-		}
-    },
-
-    // Dumps the whole internal color datatype, but can't be used as a setter
-    colorData: function() {
-    	// Can only act as a getter
-    	return this._colors;
-    },
-
-    // Works with structure like: {slug: val, slug: val, ...} (e.g. {red: 211, blue: 200, green: 125, amber: 100})
-    colors: function( colors ) {
-    	// No value passed, act as a getter.
-    	if (colors === undefined) {
-    		var colvals = {};
-    		for (var slug in this._colors) {
-    			colvals[slug] = this._colors[slug].value;
-    		}
-    		return colvals;
-    	}
-
-    	// Value passed, act as a setter
-    	var changed = false;
-    	for (var slug in colors) {
-    		var newColor = colors[slug];
-    		var currentColor = this._colors[slug];
-    		if (this._colors[slug] !== undefined && newColor !== undefined) {
-    			this._colors[slug].value = newColor;
-    			this._elms[slug].slider.slider('value', newColor);
-    			this._elms[slug].input.val(newColor);
-    		}
-    	}
-    }
-});
-
 $(function() {
 	var CONFIG, STATE;
     var cpSet, cpBlink1, cpBlink2, cpFade1, cpFade2;
@@ -473,10 +260,9 @@ $(function() {
 });
 
 </script>
-</head>
+{% endblock %}
 
-<body>
-
+{% block body2 %}
 <fieldset><legend>Direct Color Change</legend>
 <div id="colorPickerSet"></div>
 </fieldset>
@@ -501,6 +287,4 @@ $(function() {
 <label>Time (seconds): <input min="5" max="172800" type="text" id="fadeTime" /></label><br/>
 <button id="fadeBtn"></button>
 </fieldset>
-
-</body>
-</html>
+{% endblock %}

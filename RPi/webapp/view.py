@@ -87,13 +87,20 @@ class DisplayEvent(object):
         return repr(c)
 
     @property
+    def inPast(self):
+        return self.at < datetime.datetime.utcnow()
+
+    @property
+    def at(self):
+        return datetime.datetime.fromtimestamp(int(self.event['at']))
+
+    @property
     def commandStr(self):
         return str(self.event['inner']['command'])
 
     @property
     def atStr(self):
-        dt = datetime.datetime.fromtimestamp(int(self.event['at']))
-        return dt.strftime("%Y-%m-%d %H:%M:%S")
+        return self.at.strftime("%Y-%m-%d %H:%M:%S")
 
     @property
     def id(self):
@@ -109,6 +116,10 @@ def events():
     levents = json.loads(red.get('events') or '[]')
     events = [DisplayEvent(e) for e in levents]
     return render_template("events.html", events=events)
+
+@app.route('/events/new', methods=["GET"])
+def newevent():
+    return render_template("newevent.html")
 
 @app.route('/json/config', methods=['GET'])
 def config():

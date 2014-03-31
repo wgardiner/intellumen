@@ -1,0 +1,62 @@
+{% extends "bootstrap/base.html" %}
+
+{% block title %}Intellumen : {% block title2 %}{% endblock %}{% endblock %}
+
+{% block scripts %}
+{{super()}}
+<script src="{{url_for('static', filename='ext/sorttable.js')}}"></script>
+<script src="{{url_for('static', filename='ext/jquery.js')}}"></script>
+<script src="{{url_for('static', filename='ext/jquery-ui.js')}}"></script>
+<script src="{{url_for('static', filename='ext/jquery-throttle-debounce.js')}}"></script>
+{%endblock %}
+
+{% block styles %}
+{{super()}}
+<meta charset="utf-8">
+<link rel="stylesheet" href="{{url_for('static', filename='style.css')}}" />
+<link rel="stylesheet" href="{{url_for('static', filename='ext/jquery-ui.css')}}" />
+{% endblock %}
+
+{% block content %}
+
+<nav class="navbar navbar-default" role="navigation">
+  <div class="container-fluid">
+    <!-- Brand and toggle get grouped for better mobile display -->
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="/">Intellumen</a>
+    </div>
+
+    <!-- Collect the nav links, forms, and other content for toggling -->
+    <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+      <ul class="nav navbar-nav">
+        {%- for endpoint, caption in [
+          ('events', 'Events')
+        ] %}
+          <li{% if endpoint == request.endpoint %} class=active{% endif
+          %}><a href={{ url_for(endpoint) }}>{{ caption }}</a>
+        {%- endfor %}
+      </ul>
+    </div><!-- /.navbar-collapse -->
+  </div><!-- /.container-fluid -->
+</nav>
+
+{% for message in get_flashed_messages() %}
+    {% if message.startswith('::SAFE::') %}
+        <div id="flash" class="flash">{{ message[8:]|safe }}</div>
+    {% else %}
+        <div id="flash" class="flash">{{ message }}</div>
+    {% endif %}
+{% endfor %}
+
+<h1>{{ self.title2() }}</h1>
+{% block body2 %}
+{% endblock %}
+
+{% endblock %}
+
