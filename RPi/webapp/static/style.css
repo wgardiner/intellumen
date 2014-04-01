@@ -24,7 +24,7 @@ h2{ margin-top: 0;}
 body {
     padding: 5px;
 }
-legend{ margin-bottom: 0; }
+legend{ margin-bottom: 0; width: auto; }
 legend.scheduler-border {
     width:inherit; /* Or auto */
     padding: 0;
@@ -55,6 +55,10 @@ div.flash {
     border: 1px dotted gray;
     background-color: #666666;
     margin-bottom: 1%;
+}
+
+div#jsflash {
+    display: none;
 }
 
 th,td {

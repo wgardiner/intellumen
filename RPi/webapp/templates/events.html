@@ -44,7 +44,7 @@ function deleteEvent(id) {
     if (newCount == 0) {
         $("table#events").remove();
     }
-    $("#jsflash").html("Event deleted successfully.");
+    $("#jsflash").html("Event deleted successfully.").show();
 }
 </script>
 {% endblock %}

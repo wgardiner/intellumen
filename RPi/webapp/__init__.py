@@ -9,7 +9,7 @@ def create_app(configfile=None):
     app = Flask(__name__)
     AppConfig(app, configfile)
 
-    app.config['BOOTSTRAP_USE_CDN'] = False
+    app.config['BOOTSTRAP_SERVE_LOCAL'] = True
 
     Bootstrap(app)
 

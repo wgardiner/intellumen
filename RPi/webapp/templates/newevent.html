@@ -148,12 +148,13 @@ $(function() {
             console.log(cmd);
             sendCommand(cmd);
 
-            $("#jsflash").text("Event scheduled successfully.");
+            $("#jsflash").text("Event scheduled successfully.").show();
         });
 
         $("fieldset.control").hide();
         $("fieldset#fsSet").show();
-        $("#cmdtype").val("setcolor");
+        selCmd = "setcolor";
+        $("#cmdtype").val(selCmd);
         getDate();
     }
 

@@ -17,9 +17,9 @@ def lap(a):
 
 
 import logging
-#logging.basicConfig()
+logging.basicConfig()
 logger = logging.getLogger()
-#logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.DEBUG)
 
 scheduler_queue = Queue.PriorityQueue()
 redis_queue = Queue.Queue()
@@ -97,15 +97,21 @@ class CommandMonitorThread(threading.Thread):
                 stateName = 'ledColor'
                 data = cmd['color']
             elif cmd['command'] == 'addevent':
-                aevent = cmd
+                aevent = {'command': 'event', 'at': cmd['at'], 'inner': cmd['inner'], 'id': uuid.uuid4().hex}
                 
                 # Update redis event list to match this
                 redevents = json.loads(red.get('events') or '[]')
                 redevents.append(aevent)
                 red.set('events', json.dumps(redevents))
 
+
                 aeat = datetime.datetime.utcfromtimestamp(aevent['at'])
-                scheduler_queue.put((aeat, {'command': 'event', 'sch': now, 'at': aeat, 'inner': aevent['inner'], 'id': uuid.uuid4().hex}))
+                
+                aevent = aevent.copy()
+                aevent['at'] = aeat
+
+                scheduler_queue.put((aeat, aevent))
+
             elif cmd['command'] == 'delevent':
                 devent = cmd
 
@@ -121,6 +127,7 @@ class CommandMonitorThread(threading.Thread):
                 red.set('events', json.dumps(redevents))
 
                 remove_commands('event', filt=filt)
+
             elif cmd['command'] == 'startblink':
                 stateName = 'blink'
                 data = {'reset': True, 'blinking': True, 'color1': cmd['color1'], 'color2': cmd['color2'], 'ms': int(cmd['ms']), 'numBlinks': cmd['numBlinks']}
