@@ -52,7 +52,7 @@ $.widget( "custom.colorpicker", {
     		var label = $("<label/>");
     		label.text(color.name);
 	   		label.addClass("label");
-    		tr.append($("<td/>").append(label));
+    		tr.append($("<td/>").addClass("label-td").append(label));
 
     		var slider = $("<div/>");
     		slider.addClass("slider");
@@ -65,12 +65,12 @@ $.widget( "custom.colorpicker", {
 
     		slider.children(".ui-slider-range, .ui-slider-handle").css("background", "#" + color.hex);
 
-	        tr.append($("<td/>").append(slider));
+	        tr.append($("<td/>").addClass("slider-td").append(slider));
 
 	        var input = $("<input max='255' type='text'/>");
 	        input.addClass("input");
 	        input.val(color.value);
-	        tr.append($("<td/>").append(input));
+	        tr.append($("<td/>").addClass("input-td").append(input));
 
 	        self._elms[color.slug] = {input: input, slider: slider};
 

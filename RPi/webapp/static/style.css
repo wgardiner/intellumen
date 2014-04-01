@@ -1,38 +1,56 @@
-body,html,td input{
+/* General Styling */
+body,html{
     background-color: #444444;
-    border: none;
+    text-shadow: 0 0 1px rgba(0,0,0,0.3);
 }
+.navbar{
+    background-color: #360A20;
+    color: #ccc;
+}
+.navbar a {
+    color: #ccc;
+}
+
+/* Color Picker Styling */
 body,fieldset,fieldset legend,h1,h2,h3,th,td{
     color: #cccccc;
 }
-td
 h1 {
     font-size: 2em;
     margin-top: 0;
 }
+h2{ margin-top: 0;}
 
 body {
     padding: 5px;
 }
-
+legend{ margin-bottom: 0; }
 legend.scheduler-border {
     width:inherit; /* Or auto */
     padding: 0;
-    margin-bottom: 0em;
+    margin-bottom: 0;
     border: 0;
 }
-
+label > input, label > select, button {
+    background-color: #666666;
+    border: none;
+}
 fieldset {
     border: 1px solid black;
     padding: 5px;
     margin-bottom: 1em;
+    width: 100%;
+    max-width: 1025px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 div.flash {
     font-size: 2em;
-    color: red;
+    color: #ccc;
     border: 1px dotted gray;
-    background-color: lightgray;
+    background-color: #666666;
+    margin-bottom: 1%;
 }
 
 th,td {
