@@ -17,9 +17,9 @@ def lap(a):
 
 
 import logging
-logging.basicConfig()
+#logging.basicConfig()
 logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
+#logger.setLevel(logging.DEBUG)
 
 scheduler_queue = Queue.PriorityQueue()
 redis_queue = Queue.Queue()
