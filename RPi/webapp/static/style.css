@@ -11,20 +11,29 @@ body,html{
     color: #ccc;
 }
 
-/* Color Picker Styling */
 body,fieldset,fieldset legend,h1,h2,h3,th,td{
     color: #cccccc;
 }
 h1 {
-    font-size: 2em;
+    font-size: 1.75rem;
     margin-top: 0;
 }
-h2{ margin-top: 0;}
+label, button{
+    font-size: 1.75rem;
+}
+h2{ 
+    font-size: 1.75rem;
+    margin-top: 1%;
+}
 
 body {
     padding: 5px;
 }
-legend{ margin-bottom: 0; width: auto; }
+legend{ 
+    font-size: 2rem;
+    margin-bottom: 0; 
+    width: auto; 
+}
 legend.scheduler-border {
     width:inherit; /* Or auto */
     padding: 0;
@@ -39,7 +48,7 @@ colorPickerSet{
     width: 100%;
 }
 fieldset {
-    border: 1px solid #ccc;
+    border: 1px solid #666666;
     padding: 5px;
     margin-bottom: 1em;
     width: 100%;
@@ -50,7 +59,7 @@ fieldset {
 }
 
 div.flash {
-    font-size: 2em;
+    font-size: 2rem;
     color: #ccc;
     border: 1px dotted gray;
     background-color: #666666;
